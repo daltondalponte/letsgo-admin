@@ -67,7 +67,7 @@ export const authOptions: NextAuthOptions = {
         },
     },
     pages: {
-        signIn: "/",
+        signIn: "/auth/signin",
         error: "/api/auth/signin/error",
     },
     session: {
@@ -79,3 +79,4 @@ export const authOptions: NextAuthOptions = {
     },
     secret: process.env.NEXTAUTH_SECRET,
 };
+
