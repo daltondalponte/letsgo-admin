@@ -1,14 +1,11 @@
 "use client"
 import { ChangeEvent, useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { useAuth } from "@/context/authContext";
 
-import { Accordion, AccordionItem, Avatar, BreadcrumbItem, Breadcrumbs, Button, Divider, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Pagination, Switch, useDisclosure } from "@nextui-org/react";
-import { BanknotesIcon, MagnifyingGlassCircleIcon, PhotoIcon, PlusCircleIcon, TicketIcon, TrashIcon } from "@heroicons/react/24/outline";
-import { Event } from "@/types/Letsgo";
-import { CardEvent } from "../CardEvent";
+import { Accordion, AccordionItem, Avatar, BreadcrumbItem, Breadcrumbs, Button, Divider, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Pagination, Switch, useDisclosure, Select, SelectItem, Chip, Card, CardBody, CardHeader, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Image } from "@nextui-org/react";
+import { BanknotesIcon, MagnifyingGlassCircleIcon, PhotoIcon, PlusCircleIcon, TicketIcon, TrashIcon, EyeIcon, CalendarIcon, MapPinIcon, UsersIcon } from "@heroicons/react/24/outline";
+import type { Event } from "@/types/Letsgo";
 import axios from "axios";
-import { useSession } from "next-auth/react";
-import firebase_app from "@/lib/firebase";
-import { getDownloadURL, getStorage, ref as refStorage, uploadBytes } from "firebase/storage";
 import moment from "moment";
 import { useRouter } from "next-nprogress-bar";
 import "moment/locale/pt-br"
@@ -18,13 +15,16 @@ interface Props {
     events: Event[]
 }
 
-const rowsPerPage = 8
+interface Establishment {
+    id: string;
+    name: string;
+    address: string;
+    ownerId: string;
+}
+
+const rowsPerPage = 10
 export function ListEvents({ events }: Props) {
-    const { data: session } = useSession()
-
-    const { isOpen, onOpen, onOpenChange, onClose } = useDisclosure();
-    const { isOpen: isOpenModalTicket, onOpen: onOpenModalTicket, onOpenChange: onOpenChangeModalTicket } = useDisclosure();
-
+    const { user, token } = useAuth();
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
     const [selectedPhoto, setSelectedPhoto] = useState<File>()
@@ -32,7 +32,13 @@ export function ListEvents({ events }: Props) {
     const [isTicketsSale, steIsTicketSale] = useState(false)
     const [page, setPage] = useState(1)
     const [filterValue, setFilterValue] = useState("");
+    const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
     const hasSearchFilter = Boolean(filterValue);
+
+    // Novos estados para estabelecimentos e aprovação
+    const [establishments, setEstablishments] = useState<Establishment[]>([]);
+    const [selectedEstablishment, setSelectedEstablishment] = useState<string>("");
+    const [loadingEstablishments, setLoadingEstablishments] = useState(false);
 
     const [ticketForm, setTicketForm] = useState(
         {
@@ -47,7 +53,46 @@ export function ListEvents({ events }: Props) {
         name: "",
         dateTimestamp: "",
         description: "",
+        address: "",
     })
+
+    // Verificar se é promoter
+    const isPromoter = user?.type === "PROFESSIONAL_PROMOTER";
+    const isOwner = user?.type === "PROFESSIONAL_OWNER";
+
+    // Buscar estabelecimentos disponíveis para promoters
+    const fetchEstablishments = async () => {
+        if (!isPromoter || !token) return;
+
+        setLoadingEstablishments(true);
+        try {
+            const response = await axios.get('/api/establishment/available-for-promoters', {
+                headers: {
+                    'authorization': `Bearer ${token}`
+                }
+            });
+            
+            setEstablishments(response.data.establishments || []);
+        } catch (error) {
+            console.error('Erro ao buscar estabelecimentos:', error);
+        } finally {
+            setLoadingEstablishments(false);
+        }
+    };
+
+    // Verificar se o estabelecimento selecionado precisa de aprovação
+    const needsApproval = useMemo(() => {
+        if (!isPromoter || !selectedEstablishment) return false;
+        
+        const establishment = establishments.find(est => est.id === selectedEstablishment);
+        return establishment && establishment.ownerId !== user?.uid;
+    }, [selectedEstablishment, establishments, isPromoter, user?.uid]);
+
+    useEffect(() => {
+        if (isPromoter) {
+            fetchEstablishments();
+        }
+    }, [isPromoter, token]);
 
     const moneyMask = (e: ChangeEvent<HTMLInputElement>) => {
         let value = e.target.value.replace('.', '').replace(',', '').replace(/\D/g, '')
@@ -72,7 +117,7 @@ export function ListEvents({ events }: Props) {
     }, [selectedPhoto])
 
     const filteredItems = useMemo(() => {
-        if (!events) return []
+        if (!events || !Array.isArray(events)) return []
         let filtered = [...events];
 
         if (hasSearchFilter) {
@@ -101,7 +146,7 @@ export function ListEvents({ events }: Props) {
         }
     }, []);
 
-    const handleOnChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const handleOnChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target
         const keyName = name as keyof typeof eventForm
 
@@ -111,24 +156,6 @@ export function ListEvents({ events }: Props) {
         }))
 
     }
-
-    const bottomContent = useMemo(() => {
-        return (
-            <div className="flex w-full justify-center items-center z-0">
-                {items.length ? <Pagination
-                    showControls
-                    classNames={{
-                        cursor: "bg-foreground text-background",
-                    }}
-                    color="default"
-                    page={page}
-                    total={pages}
-                    variant="light"
-                    onChange={setPage}
-                /> : null}
-            </div>
-        );
-    }, [filteredItems.length, page, pages, hasSearchFilter]);
 
     const handleRemoveTicket = (index: number) => {
         const copy = [...ticketsData]
@@ -152,53 +179,67 @@ export function ListEvents({ events }: Props) {
             setLoading(true)
 
             if (Object.values(eventForm).some(value => !value.length) || !selectedPhoto) {
-                alert("Preencha todos os campos")
+                setError("Preencha todos os campos")
                 return
             }
 
-            const storage = getStorage(firebase_app)
-            const storageRef = refStorage(storage, `/photos/events/${session?.user?.email}`)
-            await uploadBytes(storageRef, selectedPhoto!)
+            // Validação específica para promoters
+            if (isPromoter && !selectedEstablishment) {
+                setError("Selecione um estabelecimento para o evento")
+                return
+            }
 
-            const url = await getDownloadURL(storageRef)
+            // Upload da imagem via API route
+            const uploadFormData = new FormData();
+            uploadFormData.append('file', selectedPhoto!);
+            uploadFormData.append('email', user?.email || '');
 
-            startTransition(() => {
-                // Refresh the current route and fetch new data from the server without
-                // losing client-side browser or React state.
-                router.refresh();
-            });
-            const dateTimestamp = moment(eventForm.dateTimestamp).toISOString()
+            const uploadResponse = await axios.post('/api/upload', uploadFormData);
+            const imageUrl = uploadResponse.data.url;
+
+            // Determinar o establishmentId baseado no tipo de usuário
+            let establishmentId = selectedEstablishment;
+            if (isOwner) {
+                establishmentId = user?.establishmentId;
+            }
 
             const formData = {
                 ...eventForm,
-                establishmentId: session?.user.establishment?.id,
-                dateTimestamp,
-                photos: [url],
-                tickets: ticketsData
+                establishmentId: establishmentId || '',
+                dateTimestamp: moment(eventForm.dateTimestamp).toISOString(),
+                photos: [imageUrl],
+                tickets: ticketsData,
+                needsApproval: needsApproval, // Novo campo para indicar se precisa de aprovação
+                promoterId: isPromoter ? user?.uid : null // ID do promoter se aplicável
             }
 
-            console.log(formData);
-
-            await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/event/create`, formData, {
+            await axios.post('/api/event/create', formData, {
                 headers: {
-                    'authorization': `Bearer ${session?.access_token}`
+                    'authorization': `Bearer ${token}`
                 }
             })
-
 
             setTicketsData([])
             setEventForm({
                 name: "",
                 dateTimestamp: "",
                 description: "",
+                address: "",
             })
+            setSelectedEstablishment("")
 
-            alert("Seu evento foi criado com sucesso!")
+            // Mensagem diferente baseada na aprovação
+            if (needsApproval) {
+                setError("Seu evento foi criado com sucesso e está aguardando aprovação do proprietário do estabelecimento!")
+            } else {
+                setError("Seu evento foi criado com sucesso!")
+            }
+            
             onClose()
 
         } catch (error) {
             console.error(error);
-            alert("Ocorreu um erro")
+            setError("Ocorreu um erro")
         } finally {
             setLoading(false)
         }
@@ -208,168 +249,272 @@ export function ListEvents({ events }: Props) {
         localStorage.removeItem("@evets-letsgo")
         localStorage.setItem("@evets-letsgo", JSON.stringify(events))
     }, [events])
+
+    const handleViewEvent = (event: Event) => {
+        setSelectedEvent(event);
+        onOpenDetails();
+    };
+
+    const getStatusColor = (status?: string) => {
+        switch (status) {
+            case "PENDING": return "warning";
+            case "APPROVED": return "success";
+            case "REJECTED": return "danger";
+            default: return "default";
+        }
+    };
+
+    const getStatusText = (status?: string) => {
+        switch (status) {
+            case "PENDING": return "Aguardando Aprovação";
+            case "APPROVED": return "Aprovado";
+            case "REJECTED": return "Rejeitado";
+            default: return "Ativo";
+        }
+    };
+
+    const [error, setError] = useState<string | null>(null)
+
+    const { isOpen, onOpen, onOpenChange } = useDisclosure();
+    const { isOpen: isOpenModalTicket, onOpen: onOpenModalTicket, onOpenChange: onOpenChangeModalTicket } = useDisclosure();
+    const { isOpen: isOpenDetails, onOpen: onOpenDetails, onOpenChange: onOpenChangeDetails } = useDisclosure();
+    const [isOpenTicketsModal, setIsOpenTicketsModal] = useState(false);
+    const [selectedTicketsEvent, setSelectedTicketsEvent] = useState<Event | null>(null);
+
+    // Função para abrir o modal de tickets
+    const handleOpenTicketsModal = (event: Event) => {
+        setSelectedTicketsEvent(event);
+        setIsOpenTicketsModal(true);
+    };
+    // Função para fechar o modal de tickets
+    const handleCloseTicketsModal = () => {
+        setIsOpenTicketsModal(false);
+        setSelectedTicketsEvent(null);
+    };
+
     return (
-        <section className="flex max-w-6xl w-full items-center flex-col gap-4">
-            <div className="flex w-full justify-start">
-                <Breadcrumbs>
-                    <BreadcrumbItem
-                        href="/"
-                    >Home</BreadcrumbItem>
-                    <BreadcrumbItem isCurrent>Eventos</BreadcrumbItem>
-                </Breadcrumbs>
-            </div>
-
-            <div className="flex flex-row w-full justify-between items-center">
-                <Input
-                    isClearable
-                    classNames={{
-                        base: "w-full sm:max-w-[44%]",
-                        inputWrapper: "border-1",
-                    }}
-                    placeholder="Buscar pelo nome ou descrição"
-                    size="sm"
-                    startContent={<MagnifyingGlassCircleIcon className="w-6 h-6 text-default-300" />}
-                    value={filterValue}
-                    variant="bordered"
-                    onClear={() => setFilterValue("")}
-                    onValueChange={onSearchChange} />
-
+        <div className="space-y-6 w-full max-w-6xl mx-auto">
+            <div className="flex justify-between items-center mb-2">
+                <h1 className="text-2xl font-bold text-theme-primary">Meus Eventos</h1>
                 <Button
-                    onClick={onOpen}
-                    className="bg-[#FF6600] text-white font-bold"
-                    endContent={<PlusCircleIcon className="w-6  h-6" />}>
-                    Novo
+                    onPress={() => router.push('/dashboard/eventos/novo')}
+                    className="bg-[#FF6600] text-white font-bold shadow-none"
+                    endContent={<PlusCircleIcon className="w-5 h-5" />}>
+                    Novo Evento
                 </Button>
             </div>
 
-            {!items.length ?
-                <label className="flex text-black my-auto h-[200px] items-center self-center">
-                    Nada encontrado...
-                </label> : null
-            }
+            <Card className="bg-content1 border-none shadow-none">
+                <CardHeader className="pb-0">
+                    <Input
+                        placeholder="Buscar eventos..."
+                        startContent={<MagnifyingGlassCircleIcon className="w-5 h-5 text-default-400" />}
+                        value={filterValue}
+                        onChange={(e) => setFilterValue(e.target.value)}
+                        className="max-w-xs input-theme"
+                        size="sm"
+                        variant="bordered"
+                    />
+                </CardHeader>
+                <CardBody className="pt-2">
+                    <Table aria-label="Tabela de eventos" removeWrapper className="table-auto text-sm">
+                        <TableHeader className="bg-transparent">
+                            <TableColumn>EVENTO</TableColumn>
+                            <TableColumn className="min-w-[200px]">LOCAL</TableColumn>
+                            <TableColumn>DATA</TableColumn>
+                            <TableColumn>STATUS</TableColumn>
+                            <TableColumn>INGRESSOS</TableColumn>
+                            <TableColumn>Administradores</TableColumn>
+                        </TableHeader>
+                        <TableBody
+                            // itemKey removido, não existe na tipagem do TableBody
+                            emptyContent={!events.length ? "Nenhum evento encontrado" : "Carregando..."}
+                            items={items}
+                        >
+                            {(event) => (
+                                <TableRow key={event.id} className="hover:bg-content2 transition border-b border-default-100">
+                                    <TableCell>
+                                        <div className="flex items-center gap-2">
+                                            {event.photos && event.photos.length > 0 && (
+                                                <Image
+                                                    src={event.photos[0]}
+                                                    alt={event.name || "Sem nome"}
+                                                    className="w-10 h-10 rounded object-cover border border-default-200"
+                                                />
+                                            )}
+                                            <div>
+                                                <p className="font-bold text-theme-primary leading-tight text-lg">{event.name || "Sem nome"}</p>
+                                                <p className="text-xs text-theme-secondary line-clamp-1">{event.description || ""}</p>
+                                            </div>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="min-w-[200px]">
+                                        <div>
+                                            <p className="font-medium text-theme-primary leading-tight">{event.establishment?.name ? String(event.establishment.name) : '-'}</p>
+                                            {/* Endereço removido */}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="flex items-center gap-1">
+                                            <CalendarIcon className="w-4 h-4 text-default-400" />
+                                            <span className="text-theme-primary font-medium">
+                                                {event.dateTimestamp ? moment(event.dateTimestamp).format('DD/MM/YYYY HH:mm') : ""}
+                                            </span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Chip color={getStatusColor(event.approvalStatus) as any} variant="flat" size="sm" className="text-xs px-2">
+                                            {getStatusText(event.approvalStatus)}
+                                        </Chip>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="flex items-center gap-2 justify-center">
+                                            <Button
+                                                isIconOnly
+                                                size="sm"
+                                                variant="light"
+                                                className="text-default-500"
+                                                onPress={() => handleOpenTicketsModal(event)}
+                                                title="Ingressos"
+                                            >
+                                                <TicketIcon className="w-5 h-5" />
+                                            </Button>
+                                            <span className="text-xs text-theme-secondary font-semibold">
+                                                {event.tickets ? event.tickets.length : 0}
+                                            </span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>
+                                        {/* Exibir nomes dos administradores, se disponíveis */}
+                                        {event.managers && event.managers.length > 0 ? (
+                                            <div className="flex flex-col gap-1">
+                                                {event.managers.map((manager: any) => (
+                                                    <span key={manager.id} className="text-xs text-theme-primary font-medium">
+                                                        {manager.name}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <span className="text-xs text-theme-secondary">-</span>
+                                        )}
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
 
-            {items.map((item, index) => (
-                <CardEvent key={index} event={item} />
-            ))}
-            {bottomContent}
+                    {pages > 1 && (
+                        <div className="flex justify-center mt-2">
+                            <Pagination
+                                total={pages}
+                                page={page}
+                                onChange={setPage}
+                                showControls
+                                size="sm"
+                            />
+                        </div>
+                    )}
+                </CardBody>
+            </Card>
             <Modal hideCloseButton isDismissable={false} size="4xl" isOpen={isOpen} onOpenChange={onOpenChange}>
                 <ModalContent>
                     {(onClose) => (
                         <>
-                            <ModalHeader className="flex flex-col gap-1">Novo evento</ModalHeader>
+                            <ModalHeader className="flex flex-col gap-1">Novo Evento</ModalHeader>
                             <ModalBody>
-                                <div className="flex flex-row items-center gap-6">
-                                    <Avatar
-                                        src={previewImage}
-                                        icon={<PhotoIcon className="w-15 h-15" />}
-                                        className="w-20 h-20 text-large" />
-                                    <label
-                                        htmlFor="file-upload-notafiscal"
-                                        className="text-center flex items-center relative cursor-pointer rounded-md bg-[#FF6600] p-2 font-semibold text-white focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2"
-                                    >
-                                        <span>{selectedPhoto ? "Alterar" : "Selecionar"}</span>
-                                        <input
-                                            accept="image/*"
-                                            id="file-upload-notafiscal"
-                                            name="file-upload-notafiscal"
-                                            onChange={e => {
-                                                setSelectedPhoto(e.target.files![0])
-                                            }}
-                                            type="file"
-                                            className="sr-only" />
-                                    </label>
-                                </div>
-                                <Input
-                                    label="Nome"
-                                    name="name"
-                                    placeholder="Qual o nome do evento?"
-                                    maxLength={99}
-                                    value={eventForm.name}
-                                    onChange={handleOnChange}
-                                />
-                                <Input
-                                    label="Descrição"
-                                    name="description"
-                                    placeholder="Forneça uma descrição para o evento"
-                                    maxLength={99}
-                                    value={eventForm.description}
-                                    onChange={handleOnChange}
-                                />
-                                <Input
-                                    type="datetime-local"
-                                    label=""
-                                    name="dateTimestamp"
-                                    value={eventForm.dateTimestamp}
-                                    onChange={handleOnChange}
-                                />
-                                <Switch isSelected={isTicketsSale} onValueChange={steIsTicketSale}>
-                                    Haverá venda de ingressos
-                                </Switch>
-                                {isTicketsSale ?
-                                    <div className="flex flex-col transition transform -translate-y-1 motion-reduce:transition-none motion-reduce:transform-none">
-                                        <Divider className="my-4" />
-
-                                        <div className="flex flex-col py-6 max-h-[350px] overflow-auto">
-                                            <Accordion variant="splitted">
-                                                {ticketsData.map((item: typeof ticketForm, index) => {
-
-                                                    return (
-                                                        <AccordionItem
-                                                            key={index}
-                                                            isCompact
-                                                            title={item.description}
-                                                            subtitle={`Qtde ${item.quantity_available}`}
-                                                            startContent={<TicketIcon className="w-6 h-6" />}
-                                                        >
-                                                            <div className="flex flex-row gap-4">
-                                                                <BanknotesIcon className="w-5 h-5" />
-                                                                <span className="text-[14px]">
-                                                                    {Number(item.price).toLocaleString("pt-br", {
-                                                                        currency: "BRL",
-                                                                        style: "currency"
-                                                                    })}
-                                                                </span>
-                                                            </div>
-                                                            <Button
-                                                                onClick={() => handleRemoveTicket(index)}
-                                                                variant="light"
-                                                                color="danger"
-                                                                className="flex mx-auto self-end"
-                                                                startContent={<TrashIcon className="w-5 h-5" />}>
-                                                                Remover Ticket
-                                                            </Button>
-                                                        </AccordionItem>
-                                                    )
-                                                })}
-                                            </Accordion>
-                                        </div>
-                                        <Button
-                                            onClick={onOpenModalTicket}
-                                            variant="light"
-                                            className="text-[#FF6600] font-bold"
-                                            endContent={<PlusCircleIcon className="w-6  h-6" />}>
-                                            Adicionar Ticket
-                                        </Button>
-
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="flex flex-col gap-4">
+                                        <Input
+                                            label="Nome do Evento"
+                                            name="name"
+                                            placeholder="Digite o nome do evento"
+                                            maxLength={99}
+                                            value={eventForm.name}
+                                            onChange={handleOnChange}
+                                            isRequired
+                                        />
+                                        <label className="text-sm font-medium text-theme-tertiary">Descrição</label>
+                                        <textarea
+                                            name="description"
+                                            placeholder="Descreva o evento"
+                                            maxLength={255}
+                                            value={eventForm.description}
+                                            onChange={handleOnChange}
+                                            rows={5}
+                                            className="rounded-md border border-default-200 px-3 py-2 text-theme-primary bg-white shadow-sm focus:ring-2 focus:ring-accent-primary resize-y min-h-[100px]"
+                                            required
+                                        />
+                                        <Input
+                                            type="datetime-local"
+                                            label="Data e Hora"
+                                            name="dateTimestamp"
+                                            value={eventForm.dateTimestamp || ""}
+                                            onChange={handleOnChange}
+                                            isRequired
+                                        />
                                     </div>
-                                    : null
-                                }
+                                    <div className="flex flex-col gap-4">
+                                        {/* Upload de imagem */}
+                                        <label className="block text-sm font-medium text-theme-tertiary">Imagem do Evento</label>
+                                        <div className="flex items-center gap-4">
+                                            <Avatar
+                                                src={previewImage}
+                                                icon={<PhotoIcon className="w-10 h-10" />}
+                                                className="w-24 h-24 text-large border border-default-200" />
+                                            <label
+                                                htmlFor="file-upload-event"
+                                                className="cursor-pointer rounded-md bg-[#FF6600] px-4 py-2 text-white font-semibold hover:bg-orange-600 transition"
+                                            >
+                                                {selectedPhoto ? "Alterar" : "Selecionar"}
+                                                <input
+                                                    accept="image/*"
+                                                    id="file-upload-event"
+                                                    name="file-upload-event"
+                                                    onChange={e => setSelectedPhoto(e.target.files![0])}
+                                                    type="file"
+                                                    className="sr-only" />
+                                            </label>
+                                        </div>
+                                        {/* Para PROMOTER, mostrar seletor de estabelecimento */}
+                                        {isPromoter && (
+                                            <Select
+                                                label="Buscar Estabelecimento"
+                                                placeholder="Digite o nome do estabelecimento"
+                                                selectedKeys={selectedEstablishment ? [selectedEstablishment] : []}
+                                                onSelectionChange={(keys) => {
+                                                    const selected = Array.from(keys)[0] as string;
+                                                    setSelectedEstablishment(selected);
+                                                }}
+                                                isLoading={loadingEstablishments}
+                                                isRequired
+                                            >
+                                                {establishments.map((establishment) => (
+                                                    <SelectItem key={establishment.id} value={establishment.id}>
+                                                        <div className="flex flex-col">
+                                                            <span className="font-medium">{establishment.name}</span>
+                                                            <span className="text-xs text-gray-500">{establishment.address}</span>
+                                                        </div>
+                                                    </SelectItem>
+                                                ))}
+                                            </Select>
+                                        )}
+                                    </div>
+                                </div>
                             </ModalBody>
                             <ModalFooter>
                                 <Button
                                     isDisabled={loading}
-                                    disabled={loading}
                                     color="danger"
                                     variant="light"
                                     onPress={onClose}>
-                                    Fechar
+                                    Cancelar
                                 </Button>
                                 <Button
                                     isLoading={loading}
                                     isDisabled={loading}
                                     className="bg-[#FF6600] text-white font-bold"
                                     onPress={handleSubmit}>
-                                    Enviar
+                                    Criar Evento
                                 </Button>
                             </ModalFooter>
                         </>
@@ -433,6 +578,141 @@ export function ListEvents({ events }: Props) {
                     )}
                 </ModalContent>
             </Modal>
-        </section>
+
+            {/* Modal de Detalhes do Evento */}
+            <Modal isOpen={isOpenDetails} onOpenChange={onOpenChangeDetails} size="4xl">
+                <ModalContent>
+                    {(onClose) => (
+                        <>
+                            <ModalHeader>Detalhes do Evento</ModalHeader>
+                            <ModalBody>
+                                {selectedEvent && (
+                                    <div className="space-y-6">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div>
+                                                <label className="text-sm font-medium text-theme-tertiary">Nome do Evento</label>
+                                                <p className="text-xl font-bold text-theme-primary">{selectedEvent.name}</p>
+                                            </div>
+                                            <div>
+                                                <label className="text-sm font-medium text-theme-tertiary">Status</label>
+                                                <Chip color={getStatusColor(selectedEvent.approvalStatus) as any} variant="flat" size="lg">
+                                                    {getStatusText(selectedEvent.approvalStatus)}
+                                                </Chip>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label className="text-sm font-medium text-theme-tertiary">Descrição</label>
+                                            <p className="text-lg text-theme-primary">{selectedEvent.description}</p>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div>
+                                                <label className="text-sm font-medium text-theme-tertiary">Data e Hora</label>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <CalendarIcon className="w-4 h-4" />
+                                                    <p className="text-lg text-theme-primary">{moment(selectedEvent.dateTimestamp).format('DD/MM/YYYY HH:mm')}</p>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="text-sm font-medium text-theme-tertiary">Criado em</label>
+                                                <p className="text-lg text-theme-primary">{moment(selectedEvent.createdAt).format('DD/MM/YYYY HH:mm')}</p>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label className="text-sm font-medium text-theme-tertiary">Estabelecimento</label>
+                                            <div className="mt-1">
+                                                <p className="font-medium text-theme-primary">{selectedEvent.establishment?.name || "Sem estabelecimento"}</p>
+                                                <div className="flex items-center gap-2 text-theme-secondary">
+                                                    <MapPinIcon className="w-4 h-4" />
+                                                    <span>{selectedEvent.establishment?.address || ""}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {selectedEvent.photos && selectedEvent.photos.length > 0 && (
+                                            <div>
+                                                <label className="text-sm font-medium text-theme-tertiary">Fotos do Evento</label>
+                                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-2">
+                                                    {selectedEvent.photos.map((photo, index) => (
+                                                        <Image
+                                                            key={index}
+                                                            src={photo}
+                                                            alt={`Foto ${index + 1}`}
+                                                            className="w-full h-32 object-cover rounded-lg"
+                                                        />
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {selectedEvent.needsApproval && (
+                                            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                                                <div className="flex items-center gap-2">
+                                                    <Chip color="warning" variant="flat" size="sm">
+                                                        ⚠️ Aprovação Necessária
+                                                    </Chip>
+                                                </div>
+                                                <p className="text-sm text-yellow-800 mt-2">
+                                                    Este evento precisará ser aprovado pelo proprietário do estabelecimento antes de ser publicado.
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </ModalBody>
+                            <ModalFooter>
+                                <Button color="danger" variant="light" onPress={onClose}>
+                                    Fechar
+                                </Button>
+                                <Button 
+                                    className="bg-[#FF6600] text-white font-bold"
+                                    onPress={() => {
+                                        onClose();
+                                        router.push(`/dashboard/eventos/${selectedEvent?.id}`);
+                                    }}
+                                >
+                                    Gerenciar Evento
+                                </Button>
+                            </ModalFooter>
+                        </>
+                    )}
+                </ModalContent>
+            </Modal>
+
+            {/* Modal de Tickets do Evento Selecionado */}
+            <Modal isOpen={isOpenTicketsModal} onOpenChange={handleCloseTicketsModal} size="lg">
+                <ModalContent>
+                    {(onClose) => (
+                        <>
+                            <ModalHeader>Ingressos de {selectedTicketsEvent?.name}</ModalHeader>
+                            <ModalBody>
+                                {selectedTicketsEvent?.tickets && selectedTicketsEvent.tickets.length > 0 ? (
+                                    selectedTicketsEvent.tickets.map((ticket: any) => (
+                                        <Card key={ticket.id} className="mb-2">
+                                            <CardBody className="flex flex-row items-center justify-between">
+                                                <div>
+                                                    <span className="font-medium">{ticket.description}</span> - R$ {ticket.price} ({ticket.quantity_available} unid.)
+                                                </div>
+                                                <div>
+                                                    <Button size="sm" color="primary" className="mr-2">Editar</Button>
+                                                    <Button size="sm" color="danger">Remover</Button>
+                                                </div>
+                                            </CardBody>
+                                        </Card>
+                                    ))
+                                ) : (
+                                    <div>Nenhum ingresso cadastrado para este evento.</div>
+                                )}
+                            </ModalBody>
+                            <ModalFooter>
+                                <Button color="default" variant="light" onPress={onClose}>Fechar</Button>
+                            </ModalFooter>
+                        </>
+                    )}
+                </ModalContent>
+            </Modal>
+        </div>
     )
 }

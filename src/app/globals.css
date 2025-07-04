@@ -2,26 +2,375 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Definições das fontes Museo Sans */
+@font-face {
+  font-family: 'Museo Sans';
+  src: url('/fonts/MuseoSans.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Museo Sans';
+  src: url('/fonts/MuseoSans300.otf') format('opentype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Museo Sans';
+  src: url('/fonts/MuseoSans500.otf') format('opentype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Variáveis CSS para temas */
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
+  /* Tema Claro - tons neutros universais */
+  --bg-primary: #f7f7f8;
+  --bg-secondary: #fff;
+  --bg-tertiary: #f3f4f6;
+  --text-primary: #222222;
+  --text-secondary: #555555;
+  --text-tertiary: #888888;
+  --border-primary: #e5e7eb;
+  --border-secondary: #e0e0e0;
+  --accent-primary: #ff6600;
+  --accent-secondary: #ff8800;
+  --accent-tertiary: #ffd6b3;
+  --shadow-primary: 0 1px 3px 0 rgba(34,34,34,0.08);
+  --shadow-secondary: 0 4px 6px -1px rgba(34,34,34,0.08);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
-  }
+[data-theme="dark"] {
+  /* Tema Escuro - tons neutros universais */
+  --bg-primary: #18181b;
+  --bg-secondary: #232329;
+  --bg-tertiary: #27272a;
+  --text-primary: #f4f4f5;
+  --text-secondary: #a1a1aa;
+  --text-tertiary: #71717a;
+  --border-primary: #27272a;
+  --border-secondary: #3f3f46;
+  --accent-primary: #ff6600;
+  --accent-secondary: #ff8800;
+  --accent-tertiary: #b34700;
+  --shadow-primary: 0 1px 3px 0 rgba(0,0,0,0.1);
+  --shadow-secondary: 0 4px 6px -1px rgba(0,0,0,0.1);
 }
 
+/* Aplicar variáveis CSS */
 body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+  font-family: 'Museo Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+}
+
+/* Aplicar Museo Sans para todos os elementos */
+* {
+  font-family: 'Museo Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+}
+
+/* Garantir que componentes do NextUI usem Museo Sans */
+.nextui-c-* {
+  font-family: 'Museo Sans', sans-serif !important;
+}
+
+/* Aplicar para inputs, botões e outros elementos específicos */
+input, button, textarea, select {
+  font-family: 'Museo Sans', sans-serif !important;
+}
+
+/* Aplicar para elementos do NextUI */
+[data-slot="base"] {
+  font-family: 'Museo Sans', sans-serif !important;
+}
+
+/* Classes utilitárias para tema */
+.bg-theme-primary {
+  background-color: var(--bg-primary);
+}
+
+.bg-theme-secondary {
+  background-color: var(--bg-secondary);
+}
+
+.bg-theme-tertiary {
+  background-color: var(--bg-tertiary);
+}
+
+.text-theme-primary {
+  color: var(--text-primary);
+}
+
+.text-theme-secondary {
+  color: var(--text-secondary);
+}
+
+.text-theme-tertiary {
+  color: var(--text-tertiary);
+}
+
+.border-theme-primary {
+  border-color: var(--border-primary);
+}
+
+.border-theme-secondary {
+  border-color: var(--border-secondary);
+}
+
+.accent-theme-primary {
+  color: var(--accent-primary);
+}
+
+.bg-accent-primary {
+  background-color: var(--accent-primary);
+}
+
+.shadow-theme-primary {
+  box-shadow: var(--shadow-primary);
+}
+
+.shadow-theme-secondary {
+  box-shadow: var(--shadow-secondary);
+}
+
+/* Classes específicas para tabelas com tema */
+.table-theme {
+  background-color: var(--bg-secondary);
+  border-color: var(--border-primary);
+}
+
+.table-theme th {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-color: var(--border-primary);
+}
+
+.table-theme td {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  border-color: var(--border-primary);
+}
+
+.table-theme tr:hover {
+  background-color: var(--bg-tertiary);
+}
+
+/* Estilos específicos para o container da tabela */
+.table-container {
+  background-color: var(--bg-secondary);
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border-primary);
+}
+
+/* Override para NextUI Table */
+[data-theme="dark"] .nextui-table {
+  background-color: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .nextui-table th {
+  background-color: var(--bg-tertiary) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-primary) !important;
+}
+
+[data-theme="dark"] .nextui-table td {
+  background-color: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-primary) !important;
+}
+
+[data-theme="dark"] .nextui-table tr:hover {
+  background-color: var(--bg-tertiary) !important;
+}
+
+/* Estilos para o wrapper da tabela NextUI */
+[data-theme="dark"] .nextui-table-wrapper {
+  background-color: var(--bg-secondary) !important;
+  border-color: var(--border-primary) !important;
+}
+
+[data-theme="dark"] .nextui-table-base {
+  background-color: var(--bg-secondary) !important;
+}
+
+/* Cards com tema */
+.card-theme {
+  background-color: var(--bg-secondary);
+  border-color: var(--border-primary);
+  color: var(--text-primary);
+}
+
+/* Inputs com tema */
+.input-theme {
+  background-color: var(--bg-secondary);
+  border-color: var(--border-primary);
+  color: var(--text-primary);
+}
+
+.input-theme::placeholder {
+  color: var(--text-tertiary);
+}
+
+/* Garantir que o tema seja aplicado globalmente */
+html[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
+}
+
+/* Estilos para modais com tema */
+[data-theme="dark"] .nextui-modal {
+  background-color: var(--bg-secondary) !important;
+}
+
+[data-theme="dark"] .nextui-modal-content {
+  background-color: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .nextui-modal-header {
+  background-color: var(--bg-tertiary) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .nextui-modal-body {
+  background-color: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .nextui-modal-footer {
+  background-color: var(--bg-tertiary) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Reforço para NextUI Inputs, Selects e DatePickers no tema escuro */
+[data-theme="dark"] .nextui-input-wrapper,
+[data-theme="dark"] .nextui-input-main,
+[data-theme="dark"] .nextui-input,
+[data-theme="dark"] .nextui-input-content,
+[data-theme="dark"] .nextui-input-label,
+[data-theme="dark"] .nextui-input-clear-button,
+[data-theme="dark"] .nextui-input-helper,
+[data-theme="dark"] .nextui-input-field,
+[data-theme="dark"] .nextui-select,
+[data-theme="dark"] .nextui-select-trigger,
+[data-theme="dark"] .nextui-select-popover,
+[data-theme="dark"] .nextui-select-content,
+[data-theme="dark"] .nextui-select-label,
+[data-theme="dark"] .nextui-select-item,
+[data-theme="dark"] .nextui-datepicker,
+[data-theme="dark"] .nextui-datepicker-content,
+[data-theme="dark"] .nextui-input-wrapper *,
+[data-theme="dark"] .nextui-select *,
+[data-theme="dark"] .nextui-datepicker * {
+  background-color: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-primary) !important;
+  box-shadow: none !important;
+}
+
+[data-theme="dark"] input,
+[data-theme="dark"] input[type="text"],
+[data-theme="dark"] input[type="search"],
+[data-theme="dark"] input[type="date"],
+[data-theme="dark"] input[type="number"],
+[data-theme="dark"] textarea {
+  background-color: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-primary) !important;
+}
+
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] .nextui-input-field::placeholder,
+[data-theme="dark"] textarea::placeholder {
+  color: var(--text-tertiary) !important;
+}
+
+/* Campo de busca e wrapper da tabela no tema escuro */
+[data-theme="dark"] .search-bar,
+[data-theme="dark"] .search-container,
+[data-theme="dark"] .nextui-input-wrapper,
+[data-theme="dark"] .nextui-input,
+[data-theme="dark"] .nextui-input-main,
+[data-theme="dark"] .nextui-input-content,
+[data-theme="dark"] .nextui-input-field,
+[data-theme="dark"] .nextui-input-label,
+[data-theme="dark"] .nextui-input-clear-button,
+[data-theme="dark"] .nextui-input-helper,
+[data-theme="dark"] .nextui-select,
+[data-theme="dark"] .nextui-select-trigger,
+[data-theme="dark"] .nextui-select-popover,
+[data-theme="dark"] .nextui-select-content,
+[data-theme="dark"] .nextui-select-label,
+[data-theme="dark"] .nextui-select-item,
+[data-theme="dark"] .nextui-datepicker,
+[data-theme="dark"] .nextui-datepicker-content,
+[data-theme="dark"] .nextui-input-wrapper *,
+[data-theme="dark"] .nextui-select *,
+[data-theme="dark"] .nextui-datepicker * {
+  background-color: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-primary) !important;
+  box-shadow: none !important;
+}
+
+[data-theme="dark"] .table-container,
+[data-theme="dark"] .nextui-table-wrapper,
+[data-theme="dark"] .nextui-table-base {
+  background-color: var(--bg-secondary) !important;
+  border-color: var(--border-primary) !important;
+  box-shadow: none !important;
+}
+
+[data-theme="dark"] input,
+[data-theme="dark"] input[type="text"],
+[data-theme="dark"] input[type="search"],
+[data-theme="dark"] input[type="date"],
+[data-theme="dark"] input[type="number"],
+[data-theme="dark"] textarea {
+  background-color: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-primary) !important;
+}
+
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] .nextui-input-field::placeholder,
+[data-theme="dark"] textarea::placeholder {
+  color: var(--text-tertiary) !important;
+}
+
+/* Reforço máximo para campo de busca NextUI no tema escuro */
+[data-theme="dark"] input[type="search"],
+[data-theme="dark"] input[type="search"]::after,
+[data-theme="dark"] input[type="search"]::before,
+[data-theme="dark"] .nextui-input-variant-bordered,
+[data-theme="dark"] .nextui-input-variant-flat,
+[data-theme="dark"] .nextui-input-variant-bordered *,
+[data-theme="dark"] .nextui-input-variant-flat *,
+[data-theme="dark"] .input-theme,
+[data-theme="dark"] .input-theme *,
+[data-theme="dark"] .input-theme::after,
+[data-theme="dark"] .input-theme::before {
+  background-color: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-primary) !important;
+  box-shadow: none !important;
+}
+
+/* Classes utilitárias para texto laranja/destaque */
+.text-accent {
+  color: var(--accent-primary) !important;
+}
+.text-accent-secondary {
+  color: var(--accent-secondary) !important;
 }

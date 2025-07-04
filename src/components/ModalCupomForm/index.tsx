@@ -1,6 +1,6 @@
 import { Button, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, ModalProps } from "@nextui-org/react";
 import axios from "axios";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/context/authContext";
 import { ChangeEvent, useEffect, useState } from "react";
 
 
@@ -10,7 +10,7 @@ interface Props extends Omit<ModalProps, "children"> {
 }
 
 export function ModalFormCupom({ callBack, eventId, onClose, ...rest }: Props) {
-    const { data: session } = useSession()
+    const { user, token } = useAuth()
     const [loading, setLoading] = useState(false)
     const [cupomForm, setCupomForm] = useState(
         {
@@ -40,7 +40,7 @@ export function ModalFormCupom({ callBack, eventId, onClose, ...rest }: Props) {
             const { data } = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/cupom/create`, formData, {
                 headers: {
                     'Content-Type': 'application/json',
-                    'authorization': `Bearer ${session?.access_token}`
+                    'authorization': `Bearer ${token}`
                 }
             })
 

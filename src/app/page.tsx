@@ -1,93 +1,115 @@
 "use client"
-import { useSession, signIn } from "next-auth/react"
-import { FormEvent, useState } from "react"
-import { redirect } from "next/navigation";
-import { useRouter } from "next-nprogress-bar";
+import Image from "next/image"
+import { useRouter } from "next-nprogress-bar"
+import { useEffect } from "react"
 
-export default function Login() {
+export default function Home() {
   const router = useRouter()
-  const [email, setEmail] = useState("")
-  const [pass, setPass] = useState("")
 
-  const { status } = useSession();
-
-  if (status === "authenticated") {
-    router.push('/dashboard')
-  }
-
-  if (status === "loading") return null
-
-
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-
-    try {
-      const u = await signIn("username-login", {
-        redirect: false,
-        email,
-        password: pass,
-      })
-
-      if (u?.url) {
-        router.push("/dashboard")
-      } else {
-        alert("Credenciais inválidas")
-      }
-
-    } catch (e) {
-      console.log(e);
-
-    }
-  }
+  useEffect(() => {
+    // Forçar tema escuro ao entrar na página
+    document.documentElement.setAttribute('data-theme', 'dark');
+    document.documentElement.classList.add('dark');
+    localStorage.setItem('theme', 'dark');
+  }, []);
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-24 bg-white">
-      <div className="flex min-h-full flex-col justify-center px-6 py-12 lg:px-8">
-
-        <div className="sm:mx-auto sm:w-full sm:max-w-sm">
-          <form onSubmit={handleSubmit} className="space-y-6" action="#" method="POST">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium leading-6 text-gray-900">Email</label>
-              <div className="mt-2">
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  required
-                  className="block w-full rounded-md border-0 px-2 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6" />
-              </div>
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between">
-                <label htmlFor="password" className="block text-sm font-medium leading-6 text-gray-900">Password</label>
-                {/* <div className="text-sm">
-                  <a href="#" className="font-semibold text-indigo-600 hover:text-indigo-500">Forgot password?</a>
-                </div> */}
-              </div>
-              <div className="mt-2">
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  autoComplete="current-password"
-                  value={pass}
-                  onChange={e => setPass(e.target.value)}
-                  required
-                  className="block w-full rounded-md border-0 px-2 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6" />
-              </div>
-            </div>
-
-            <div>
-              <button type="submit" className="flex w-full justify-center rounded-md bg-amber-500 px-3 py-1.5 text-sm font-semibold leading-6 text-white shadow-sm hover:bg-amber-500/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Entrar</button>
-            </div>
-          </form>
-
+    <div className="min-h-screen flex flex-col bg-theme-primary font-sans">
+      {/* Header */}
+      <header className="w-full flex justify-between items-center px-8 py-6 bg-theme-secondary shadow-theme-primary">
+        <div className="flex items-center gap-3">
+          <img src="/img/logo.png" alt="Let's Go Logo" className="w-12 h-12" />
+          <span className="text-2xl font-bold text-theme-primary">Let's Go</span>
         </div>
-      </div>
-    </main >
+        <div className="flex gap-2">
+          <button
+            onClick={() => router.push("/auth/signin")}
+            className="px-6 py-2 rounded-md bg-accent-primary text-white font-semibold shadow-theme-primary hover:bg-accent-secondary transition-all"
+          >
+            Login
+          </button>
+          <button
+            onClick={() => router.push("/auth/signup")}
+            className="px-6 py-2 rounded-md border-2 border-accent-primary font-semibold bg-white hover:bg-white hover:border-4 transition-all"
+            style={{ color: 'var(--accent-primary)' }}
+          >
+            Cadastrar
+          </button>
+        </div>
+      </header>
+
+      {/* Hero Section */}
+      <section className="flex flex-col md:flex-row items-center justify-between px-8 py-16 gap-12 bg-theme-primary flex-1">
+        <div className="flex-1 max-w-xl">
+          <h1 className="text-4xl md:text-5xl font-extrabold text-theme-primary mb-6">Vai pra festa? <span className="text-accent-primary">Let's Go!</span></h1>
+          <p className="text-lg text-theme-secondary mb-8">O app que conecta você aos melhores eventos e experiências noturnas da sua cidade.</p>
+        </div>
+        <div className="flex-1 flex justify-center">
+          {/* Imagem ilustrativa */}
+          <img
+            src="/img/foto-festa01.jpg"
+            alt="Pessoas felizes em ambiente noturno conversando sorrindo com celular na mão"
+            width={400}
+            height={400}
+            className="rounded-2xl shadow-lg object-cover"
+            style={{ maxWidth: '100%', height: 'auto' }}
+          />
+        </div>
+      </section>
+
+      {/* Sessão Usuário Comum com parallax */}
+      <section
+        className="w-full py-16 px-8 flex flex-col md:flex-row items-center gap-12 relative overflow-hidden"
+        style={{
+          backgroundImage: "url('/img/foto-festa01.jpg')",
+          backgroundAttachment: "fixed",
+          backgroundPosition: "center",
+          backgroundSize: "cover",
+        }}
+      >
+        {/* Overlay para opacidade */}
+        <div className="absolute inset-0 bg-black opacity-40 z-0" />
+        <div className="flex-1 relative z-10">
+          <h2 className="text-2xl font-bold text-accent-primary mb-4">Para quem curte sair!</h2>
+          <ul className="text-lg text-white space-y-4 list-disc list-inside">
+            <li>Um novo jeito de encontrar os seus eventos preferidos, e descobrir novos lugares.</li>
+            <li>Compre ingressos de forma segura e rápida, diretamente no app.</li>
+            <li>Com o ingresso comprado, é só acessar QR CODE e chegar no local e entrar sem dor de cabeça.</li>
+          </ul>
+        </div>
+        <div className="flex-1 relative z-10"></div>
+      </section>
+
+      {/* Sessão Profissional */}
+      <section className="w-full bg-theme-secondary py-16 px-8 flex flex-col md:flex-row items-center gap-12">
+        <div className="flex-1 flex justify-center order-2 md:order-1">
+          {/* Imagem ilustrativa para profissional */}
+          <img
+            src="/img/foto-festa01.jpg"
+            alt="Profissionais felizes usando o sistema Let's Go"
+            width={350}
+            height={350}
+            className="rounded-xl shadow-md object-cover"
+            style={{ maxWidth: '100%', height: 'auto' }}
+          />
+        </div>
+        <div className="flex-1 order-1 md:order-2">
+          <h2 className="text-2xl font-bold text-accent-primary mb-4">Para profissionais do entretenimento</h2>
+          <ul className="text-lg text-theme-primary space-y-4 list-disc list-inside">
+            <li>Perfeito para donos de casas de show, e bares com shows e cobrança de entrada.</li>
+            <li>Perfeito também para produtores de evento que produzem eventos em locais de terceiros.</li>
+            <li>Crie e personalize seus eventos de forma rápida e prática.</li>
+            <li>Venda ingressos e acompanhe suas vendas em tempo real.</li>
+            <li>Área de administração Web com suporte e relatórios em tempo real.</li>
+          </ul>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="w-full bg-theme-primary py-8 flex flex-col items-center gap-2 border-t border-theme-secondary mt-auto">
+        <span className="text-theme-secondary text-lg">Siga a gente no Instagram:</span>
+        <a href="https://instagram.com/letsgoapp" target="_blank" rel="noopener noreferrer" className="text-accent-primary font-bold text-lg hover:underline">@letsgoapp</a>
+      </footer>
+    </div>
   )
 }

@@ -1,7 +1,7 @@
 import { Event } from "@/types/Letsgo";
 import { Button, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, ModalProps } from "@nextui-org/react";
 import axios from "axios";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/context/authContext";
 import { ChangeEvent, useEffect, useState } from "react";
 
 
@@ -11,7 +11,7 @@ interface Props extends Omit<ModalProps, "children"> {
 }
 
 export function ModalEditEvent({ evento, onClose, callback, ...rest }: Props) {
-    const { data: session } = useSession()
+    const { user, token } = useAuth()
     const [loading, setLoading] = useState(false)
     const [form, setForm] = useState(
         {
@@ -31,7 +31,7 @@ export function ModalEditEvent({ evento, onClose, callback, ...rest }: Props) {
             const { data } = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/event/update/${evento.id}`, form, {
                 headers: {
                     'Content-Type': 'application/json',
-                    'authorization': `Bearer ${session?.access_token}`
+                    'authorization': `Bearer ${token}`
                 }
             })
 

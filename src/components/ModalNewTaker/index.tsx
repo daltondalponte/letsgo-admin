@@ -1,7 +1,7 @@
 import { Event } from "@/types/Letsgo";
 import { Button, Checkbox, CheckboxGroup, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, ModalProps } from "@nextui-org/react";
 import axios from "axios";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/context/authContext";
 import { ChangeEvent, useEffect, useState } from "react";
 
 const emailRegex = /^\S+@\S+\.\S+$/
@@ -12,7 +12,7 @@ interface Props extends Omit<ModalProps, "children"> {
 }
 
 export function ModalNewTaker({ evento, onClose, callback, ...rest }: Props) {
-    const { data: session } = useSession()
+    const { user, token } = useAuth();
     const [loading, setLoading] = useState(false)
     const [email, setEmail] = useState("")
 
@@ -31,7 +31,7 @@ export function ModalNewTaker({ evento, onClose, callback, ...rest }: Props) {
             }, {
                 headers: {
                     'Content-Type': 'application/json',
-                    'authorization': `Bearer ${session?.access_token}`
+                    'authorization': `Bearer ${token}`
                 }
             })
 

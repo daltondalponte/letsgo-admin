@@ -1,38 +1,45 @@
+"use client";
+import { useEffect, useState } from "react";
 import { ListEvents } from "@/components/Event";
-import { authOptions } from "@/lib/authOptions";
 import { Event } from "@/types/Letsgo";
-import { getServerSession } from "next-auth";
-import { redirect } from "next/navigation";
+import { useAuth } from "@/context/authContext";
+import axios from "axios";
 
-export default async function Index() {
+export default function EventosPage() {
+  const { user, token } = useAuth();
+  const [events, setEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(true);
 
-    const session = await getServerSession(authOptions);
-
-    if (!session) {
-        redirect("/");
+  useEffect(() => {
+    if (!token || !user?.establishment?.id) {
+      setLoading(false);
+      return;
     }
+    const fetchEvents = async () => {
+      setLoading(true);
+      try {
+        const response = await axios.get(`/api/event/find-many-by-establishment/${user.establishment.id}`, {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+        setEvents(Array.isArray(response.data.events) ? response.data.events : []);
+      } catch (error) {
+        setEvents([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchEvents();
+  }, [token, user]);
 
-    const url = session?.user.type === "PROFESSIONAL" && session?.user.isOwnerOfEstablishment ? `${process.env.API_URL}/event/find-many-by-user/${session.user.establishment?.id}` :
-        `${process.env.API_URL}/events-manager/find-many-by-user`
+  if (loading) {
+    return <div className="p-8 text-center">Carregando eventos...</div>;
+  }
 
-    let events = await fetch(url, {
-        cache: 'no-store',
-        method: "GET",
-        headers: {
-            'Content-Type': 'application/json',
-            'authorization': `Bearer ${session?.access_token}`
-        }
-    })
-        .then(res => res.json())
-        .then(res => res?.events ?? res as Event[])
-        .catch(error => {
-            console.error(error)
-            return [] as Event[]
-        })
-
-    return (
-        <main className="flex w-screen h-full overflow-auto flex-col items-center justify-start p-24 bg-white">
-            <ListEvents events={events} />
-        </main>
-    )
+  return (
+    <main className="w-full max-w-6xl mx-auto px-6 py-8">
+      <ListEvents events={events} />
+    </main>
+  );
 }

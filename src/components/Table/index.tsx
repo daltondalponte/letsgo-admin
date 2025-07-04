@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import axios from "axios"
 
 import { Dialog } from '@headlessui/react'
-import { useSession } from "next-auth/react"
+import { useAuth } from "@/context/authContext"
 
 interface TableProps {
     data: {
@@ -14,7 +14,7 @@ interface TableProps {
 
 export default function Table({ data }: TableProps) {
     const [open, setOpen] = useState(false)
-    const session = useSession();
+    const { user, token } = useAuth();
     const [infoUsers, setUsers] = useState<any>([])
     const [selectedUser, setSelectedUser] = useState<any>(null)
 
@@ -37,7 +37,7 @@ export default function Table({ data }: TableProps) {
                 headers: {
                     'Content-Type': 'application/json',
                     'Access-Control-Allow-Origin': '*',
-                    'authorization': `Bearer ${session?.data?.access_token}`
+                    'authorization': `Bearer ${token}`
                 }
             })
 
@@ -45,7 +45,7 @@ export default function Table({ data }: TableProps) {
                 method: "GET",
                 headers: {
                     'Content-Type': 'application/json',
-                    'authorization': `Bearer ${session?.data?.access_token}`
+                    'authorization': `Bearer ${token}`
                 }
             }).then(res => res.json()).then(res => res)
 
@@ -108,7 +108,7 @@ export default function Table({ data }: TableProps) {
                     <button
                         type="button"
                         className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
-                        onClick={() => setOpen(false)}
+                        onPress={() => setOpen(false)}
                     >
                         Fechar
                     </button>
@@ -139,7 +139,7 @@ export default function Table({ data }: TableProps) {
                                     {infoUsers?.map((item: any, index: number) => {
 
                                         return (
-                                            <tr role="button" onClick={(e) => {
+                                            <tr key={`user-${item?.user?.uid}-${index}`} role="button" onClick={(e) => {
                                                 handleOpenModal(item)
                                             }} className="border-b border-gray-200 hover:bg-gray-100 cursor-pointer">
                                                 <td className="py-3 px-6 text-left whitespace-nowrap">

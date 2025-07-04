@@ -21,5 +21,14 @@ export interface Event {
     establishment: any;
     createdAt: string;
     updatedAt: string;
-    isActive: boolean
+    isActive: boolean;
+    approvalStatus?: "PENDING" | "APPROVED" | "REJECTED";
+    needsApproval?: boolean;
+    promoterId?: string;
+    promoter?: {
+        id: string;
+        name: string;
+        email: string;
+    };
+    tickets?: any[];
 }

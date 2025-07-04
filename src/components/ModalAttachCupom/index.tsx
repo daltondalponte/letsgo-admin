@@ -1,7 +1,7 @@
 import { LinkIcon, ReceiptPercentIcon } from "@heroicons/react/24/outline";
 import { Accordion, AccordionItem, Button, Card, CardBody, CardFooter, CardHeader, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, ModalProps } from "@nextui-org/react";
 import axios from "axios";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/context/authContext";
 import { ChangeEvent, useEffect, useState } from "react";
 
 
@@ -14,7 +14,7 @@ interface Props extends Omit<ModalProps, "children"> {
 }
 
 export function ModalAttachCupom({ callBack, onClose, cupons, ticket, isCallbackLoading, tickets, ...rest }: Props) {
-    const { data: session } = useSession()
+    const { user, token } = useAuth();
     const [loading, setLoading] = useState(false)
 
     const attachTicket = async (item: any) => {
@@ -31,7 +31,7 @@ export function ModalAttachCupom({ callBack, onClose, cupons, ticket, isCallback
             const { data } = await axios.post(url, body, {
                 headers: {
                     'Content-Type': 'application/json',
-                    'authorization': `Bearer ${session?.access_token}`
+                    'authorization': `Bearer ${token}`
                 }
             })
             callBack()
@@ -49,7 +49,7 @@ export function ModalAttachCupom({ callBack, onClose, cupons, ticket, isCallback
             const { data } = await axios.delete(url, {
                 headers: {
                     'Content-Type': 'application/json',
-                    'authorization': `Bearer ${session?.access_token}`
+                    'authorization': `Bearer ${token}`
                 }
             })
 
@@ -103,7 +103,7 @@ export function ModalAttachCupom({ callBack, onClose, cupons, ticket, isCallback
                                                 <Button
                                                     isLoading={loading || isCallbackLoading}
                                                     isDisabled={loading || isCallbackLoading}
-                                                    onClick={() => {
+                                                    onPress={() => {
                                                         ticket.cupons?.map((c: any) => c.code)?.includes(item.code) ?
                                                             dettachTicket(item) : attachTicket(item)
                                                     }}

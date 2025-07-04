@@ -2,7 +2,7 @@
 
 import { Card, CardHeader, CardBody, CardFooter, Divider, Link, Image, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, getKeyValue } from "@nextui-org/react";
 import { useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/context/authContext";
 
 interface UserData {
     user: {
@@ -44,7 +44,7 @@ interface TicketData {
 }
 
 export default function MasterDashboard() {
-    const { data: session } = useSession();
+    const { user, token } = useAuth();
     const [users, setUsers] = useState<UserData[]>([]);
     const [events, setEvents] = useState<EventData[]>([]);
     const [tickets, setTickets] = useState<TicketData[]>([]);
@@ -53,7 +53,7 @@ export default function MasterDashboard() {
 
     useEffect(() => {
         async function fetchData() {
-            if (session?.user.type !== "MASTER") {
+            if (user.type !== "MASTER") {
                 setError("Acesso não autorizado.");
                 setLoading(false);
                 return;
@@ -61,7 +61,7 @@ export default function MasterDashboard() {
 
             try {
                 const headers = {
-                    'Authorization': `Bearer ${session.access_token}`,
+                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 };
 
@@ -90,10 +90,10 @@ export default function MasterDashboard() {
             }
         }
 
-        if (session) {
+        if (user) {
             fetchData();
         }
-    }, [session]);
+    }, [user, token]);
 
     if (loading) return <div className="text-center">Carregando dados da Dashboard Master...</div>;
     if (error) return <div className="text-center text-red-500">Erro: {error}</div>;

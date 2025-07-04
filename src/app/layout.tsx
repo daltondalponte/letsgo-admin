@@ -1,9 +1,7 @@
 import './globals.css'
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
-import { NextAuthProvider } from './providers'
-
-const inter = Inter({ subsets: ['latin'] })
+import GoogleMapsScriptLoader from '@/components/GoogleMapsScriptLoader'
+import { ClientProviders } from './ClientProviders'
 
 export const metadata: Metadata = {
   title: 'Lets Go Admin',
@@ -17,8 +15,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt">
-      <body className={inter.className}>
-        <NextAuthProvider>{children}</NextAuthProvider>
+      <body className="font-museo">
+        <ClientProviders>
+          <GoogleMapsScriptLoader />
+          {children}
+        </ClientProviders>
       </body>
     </html>
   )
