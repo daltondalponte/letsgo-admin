@@ -12,6 +12,9 @@ interface TicketTaker {
   type: string;
   isActive: boolean;
   createdAt: string;
+  eventsAffected?: any[];
+  totalEventsAffected?: number;
+  warning?: string;
 }
 
 export default function AdministradoresPage() {
@@ -45,6 +48,14 @@ export default function AdministradoresPage() {
     email: "",
     password: ""
   });
+
+  // Estado para o checkbox de confirmação de exclusão irreversível
+  const [confirmUnlinkChecked, setConfirmUnlinkChecked] = useState(false);
+
+  // Resetar checkbox ao abrir modal de exclusão
+  useEffect(() => {
+    if (isDeleteOpen) setConfirmUnlinkChecked(false);
+  }, [isDeleteOpen]);
 
   const rowsPerPage = 10;
 
@@ -159,7 +170,7 @@ export default function AdministradoresPage() {
     if (!takerToDelete) return;
 
     try {
-      await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/admin/users/unlink/${takerToDelete.uid}`, {
+      const response = await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/admin/users/unlink/${takerToDelete.uid}`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -169,8 +180,17 @@ export default function AdministradoresPage() {
       await fetchData();
       
       setIsDeleteOpen(false);
+      
+      // Mostrar mensagem de sucesso com detalhes
+      const { eventsUpdated, ticketTakerRemoved } = response.data;
+      let successMsg = 'Administrador desvinculado com sucesso!';
+      
+      if (eventsUpdated > 0) {
+        successMsg += ` O administrador foi removido de ${eventsUpdated} evento(s).`;
+      }
+      
       setTakerToDelete(null);
-      setSuccessMessage('Administrador desvinculado com sucesso!');
+      setSuccessMessage(successMsg);
       setIsSuccessOpen(true);
       
     } catch (error: any) {
@@ -180,9 +200,37 @@ export default function AdministradoresPage() {
     }
   };
 
-  const confirmDelete = (taker: TicketTaker) => {
-    setTakerToDelete(taker);
-    setIsDeleteOpen(true);
+  const confirmDelete = async (taker: TicketTaker) => {
+    try {
+      // Primeiro, verificar as consequências da desvinculação
+      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/admin/users/check-unlink/${taker.uid}`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      const { eventsAffected, totalEventsAffected, warning } = response.data;
+      
+      // Se há eventos afetados, mostrar aviso detalhado
+      if (totalEventsAffected > 0) {
+        setTakerToDelete({
+          ...taker,
+          eventsAffected,
+          totalEventsAffected,
+          warning
+        });
+      } else {
+        // Se não há eventos afetados, prosseguir normalmente
+        setTakerToDelete(taker);
+      }
+      
+      setIsDeleteOpen(true);
+      
+    } catch (error: any) {
+      const errorMsg = error.response?.data?.message || error.message || 'Erro ao verificar consequências';
+      setErrorMessage(`Erro: ${errorMsg}`);
+      setIsErrorOpen(true);
+    }
   };
 
   const searchExistingTicketTakers = async () => {
@@ -510,23 +558,76 @@ export default function AdministradoresPage() {
       </Modal>
 
       {/* Modal de Confirmação de Desvinculação */}
-      <Modal isOpen={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+      <Modal isOpen={isDeleteOpen} onOpenChange={setIsDeleteOpen} size="2xl">
         <ModalContent>
           <ModalHeader>Confirmar Desvinculação</ModalHeader>
           <ModalBody>
-            <p>
-              Tem certeza que deseja desvincular o administrador{" "}
-              <strong>{takerToDelete?.name}</strong>?
-            </p>
-            <p className="text-sm text-gray-500 mt-2">
-              O administrador continuará no sistema, mas não estará mais vinculado ao seu perfil.
-            </p>
+            <div className="space-y-4">
+              <p>
+                Tem certeza que deseja desvincular o administrador{" "}
+                <strong>{takerToDelete?.name}</strong>?
+              </p>
+              {takerToDelete?.warning && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <div className="w-5 h-5 bg-yellow-400 rounded-full flex items-center justify-center">
+                        <div className="w-2 h-2 bg-yellow-800 rounded-full"></div>
+                      </div>
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm font-medium text-yellow-800">
+                        ⚠️ Aviso Importante
+                      </p>
+                      <p className="text-sm text-yellow-700 mt-1 font-bold">
+                        {takerToDelete.warning}
+                      </p>
+                      <p className="text-xs text-yellow-700 mt-2 font-semibold">
+                        Esta operação não pode ser desfeita. O administrador será removido de todos os eventos em que está vinculado.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {takerToDelete?.eventsAffected && takerToDelete.eventsAffected.length > 0 && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <p className="text-sm font-medium text-red-800 mb-2">
+                    Eventos que serão afetados:
+                  </p>
+                  <div className="space-y-2 max-h-32 overflow-y-auto">
+                    {takerToDelete.eventsAffected.map((event: any, index: number) => (
+                      <div key={event.id} className="flex items-center justify-between text-sm">
+                        <span className="text-red-700">{event.name}</span>
+                        <span className="text-red-600 text-xs">
+                          {new Date(event.dateTimestamp).toLocaleDateString('pt-BR')}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <p className="text-sm text-gray-500">
+                O administrador continuará no sistema, mas não estará mais vinculado ao seu perfil.
+              </p>
+              {/* Checkbox de confirmação */}
+              <div className="flex items-center gap-2 mt-2">
+                <input
+                  type="checkbox"
+                  id="confirmUnlink"
+                  checked={!!confirmUnlinkChecked}
+                  onChange={e => setConfirmUnlinkChecked(e.target.checked)}
+                />
+                <label htmlFor="confirmUnlink" className="text-sm text-gray-700">
+                  Estou ciente de que esta operação não pode ser desfeita e desejo prosseguir.
+                </label>
+              </div>
+            </div>
           </ModalBody>
           <ModalFooter>
             <Button color="default" variant="flat" onPress={() => setIsDeleteOpen(false)}>
               Cancelar
             </Button>
-            <Button color="danger" onPress={handleDeleteTaker}>
+            <Button color="danger" onPress={handleDeleteTaker} isDisabled={!confirmUnlinkChecked}>
               Confirmar Desvinculação
             </Button>
           </ModalFooter>

@@ -4,19 +4,29 @@ import { Input, Button, Select, SelectItem, Divider, Card, CardBody } from "@nex
 import { useRouter } from "next-nprogress-bar";
 import axios from "axios";
 import { useAuth } from "@/context/authContext";
+import EstablishmentSearch from '@/components/EstablishmentSearch';
+import moment from 'moment-timezone';
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
+import { registerLocale } from "react-datepicker";
+import ptBR from 'date-fns/locale/pt-BR';
+
+// Registrar o locale português brasileiro
+registerLocale('pt-BR', ptBR);
 
 export default function NovoEventoPage() {
   const router = useRouter();
   const { user, token } = useAuth();
 
-  // Formulário do evento
+  // Remover o campo de endereço do form inicial
   const [form, setForm] = useState({
     name: "",
     description: "",
-    dateTimestamp: "",
+    dateTimestamp: null as Date | null,
+    endTimestamp: null as Date | null,
     establishmentId: "",
-    address: "",
     coordinates_event: null,
+    duration: ""
   });
 
   // Tickets
@@ -30,11 +40,13 @@ export default function NovoEventoPage() {
   // Estados para estabelecimentos (para promoter)
   const [establishments, setEstablishments] = useState<any[]>([]);
   const [loadingEstablishments, setLoadingEstablishments] = useState(false);
+  const [selectedEstablishment, setSelectedEstablishment] = useState<any>(null);
 
   const isPromoter = user?.type === "PROFESSIONAL_PROMOTER";
   const isOwner = user?.type === "PROFESSIONAL_OWNER";
 
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   // Buscar estabelecimentos disponíveis para promoters
   useEffect(() => {
@@ -68,14 +80,38 @@ export default function NovoEventoPage() {
     setTicketForm({ ...ticketForm, [e.target.name]: e.target.value });
   };
 
+  const moneyMask = (value: string) => {
+    let v = value.replace('.', '').replace(',', '').replace(/\D/g, '')
+
+    const options = { minimumFractionDigits: 2 }
+    const result = new Intl.NumberFormat('pt-BR', options).format(
+      parseFloat(v) / 100
+    )
+
+    setTicketForm(prev => ({ ...prev, price: result }))
+  }
+
   const addTicket = () => {
     if (!ticketForm.category || !ticketForm.price || !ticketForm.quantity) return;
-    setTickets([...tickets, ticketForm]);
+    setTickets([...tickets, {
+      category: ticketForm.category,
+      price: Number(String(ticketForm.price).replace("R$", '').replaceAll('.', '').replace(',', '.')),
+      quantity: Number(ticketForm.quantity)
+    }]);
     setTicketForm({ category: "", price: "", quantity: "" });
   };
 
   const removeTicket = (idx: number) => {
     setTickets(tickets.filter((_, i) => i !== idx));
+  };
+
+  // Atualizar o form ao selecionar estabelecimento
+  const handleEstablishmentSelect = (establishment: any) => {
+    setSelectedEstablishment(establishment);
+    setForm({
+      ...form,
+      establishmentId: establishment?.id || "",
+    });
   };
 
   const handleSubmit = async (e: any) => {
@@ -87,33 +123,55 @@ export default function NovoEventoPage() {
       return;
     }
 
+    // Validar se a data não é passada
+    const eventDate = form.dateTimestamp;
+    const now = new Date();
+    
+    if (!eventDate || eventDate <= now) {
+      setError("Não é possível criar eventos em datas passadas ou na data atual. A data do evento deve ser futura.");
+      return;
+    }
+
+    // Validar se endTimestamp é posterior a dateTimestamp
+    if (form.endTimestamp) {
+      const eventEndDate = form.endTimestamp;
+      if (eventEndDate <= eventDate) {
+        setError("O horário de término deve ser posterior ao horário de início.");
+        return;
+      }
+    }
+
     if (isPromoter && !form.establishmentId) {
       setError("Selecione um estabelecimento.");
       return;
     }
 
-    if (isPromoter && !form.address) {
-      setError("Digite o endereço do evento.");
+    if (isPromoter && !selectedEstablishment) {
+      setError("Selecione um estabelecimento.");
       return;
     }
 
     setError(null);
+    setSuccess(null);
     try {
-      // Converter a data para formato ISO-8601
-      const dateTimestamp = new Date(form.dateTimestamp).toISOString();
+      // O DatePicker retorna a data no fuso horário local do usuário
+      // Vamos enviar a data como string ISO sem conversão de fuso horário
+      const dateTimestampUTC = form.dateTimestamp?.toISOString() || '';
+      
+      const duration = Number(form.duration);
+      const endDateObj = new Date(form.dateTimestamp!.getTime() + duration * 60 * 60 * 1000);
+      const endTimestampUTC = endDateObj.toISOString();
       
       // Preparar dados baseados no tipo de usuário
-      console.log('USER:', user);
       const eventData = {
         ...form,
-        dateTimestamp,
+        dateTimestamp: dateTimestampUTC,
+        endTimestamp: endTimestampUTC,
         tickets,
         establishmentId: isOwner ? user?.establishment?.id ?? '' : form.establishmentId,
-        address: isOwner ? null : form.address,
+        address: isOwner ? null : selectedEstablishment?.address,
         coordinates_event: isOwner ? null : form.coordinates_event
       };
-
-      console.log('TOKEN ENVIADO NA CRIAÇÃO DE EVENTO:', token);
 
       const response = await axios.post("/api/event/create", eventData, {
         headers: {
@@ -122,12 +180,36 @@ export default function NovoEventoPage() {
       });
       
       if (response.data && (response.data.success || response.data.event)) {
-        router.push("/dashboard/eventos");
+        setSuccess("Evento criado com sucesso!");
+        
+        // Limpar formulário
+        setForm({
+          name: "",
+          description: "",
+          dateTimestamp: null,
+          endTimestamp: null,
+          establishmentId: "",
+          coordinates_event: null,
+          duration: ""
+        });
+        setTickets([]);
+        setSelectedEstablishment(null);
+        
+        // Redirecionar após 2 segundos
+        setTimeout(() => {
+          // Promoters vão para eventos pendentes, owners para eventos
+          const redirectPath = isPromoter ? "/dashboard/eventos/pendentes" : "/dashboard/eventos";
+          router.push(redirectPath);
+        }, 2000);
       } else {
         setError(response.data?.message || response.data?.error || "Erro ao criar evento.");
       }
     } catch (err: any) {
-      setError(err?.response?.data?.error || "Erro ao criar evento.");
+      setError(
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        "Erro ao criar evento."
+      );
     }
   };
 
@@ -135,6 +217,7 @@ export default function NovoEventoPage() {
     <div className="w-full max-w-2xl mx-auto py-8">
       <h1 className="text-2xl font-bold mb-6">Criar Novo Evento</h1>
       {error && <div className="mb-4 text-red-500 font-medium bg-red-50 border border-red-200 rounded p-2">{error}</div>}
+      {success && <div className="mb-4 text-green-600 font-medium bg-green-50 border border-green-200 rounded p-2">{success}</div>}
       <form onSubmit={handleSubmit} className="space-y-6">
         <Input
           label="Nome do Evento"
@@ -152,47 +235,45 @@ export default function NovoEventoPage() {
           className="w-full px-4 py-3 rounded-md border border-default-200 text-theme-primary bg-white shadow-sm focus:ring-2 focus:ring-accent-primary resize-y min-h-[100px]"
           required
         />
+        <DatePicker
+          selected={form.dateTimestamp}
+          onChange={date => setForm(prev => ({ ...prev, dateTimestamp: date }))}
+          showTimeSelect
+          timeFormat="HH:mm"
+          timeIntervals={15}
+          dateFormat="dd/MM/yyyy HH:mm"
+          placeholderText="Selecione a data e hora"
+          className="w-full px-4 py-3 rounded-md border border-default-200 text-theme-primary bg-white shadow-sm focus:ring-2 focus:ring-accent-primary"
+          timeZone="America/Sao_Paulo"
+          locale="pt-BR"
+        />
+        {/* Substituir campo de data de término por duração */}
         <Input
-          type="datetime-local"
-          label="Data e Hora"
-          name="dateTimestamp"
-          value={form.dateTimestamp}
-          onChange={handleChange}
-          placeholder="Selecione a data e hora"
+          type="number"
+          label="Duração do evento (horas)"
+          name="duration"
+          value={form.duration || ''}
+          onChange={e => setForm(prev => ({ ...prev, duration: e.target.value }))}
+          min={1}
+          placeholder="Ex: 5"
           isRequired
         />
-        
-        {/* Campo de endereço apenas para promoters */}
-        {isPromoter && (
-          <Input
-            label="Endereço do Evento"
-            name="address"
-            value={form.address}
-            onChange={handleChange}
-            placeholder="Digite o endereço do evento"
-            isRequired
-          />
-        )}
-
         {/* Campo de estabelecimento apenas para promoters */}
         {isPromoter && (
-          <Select
-            label="Estabelecimento"
-            placeholder={loadingEstablishments ? "Carregando..." : "Selecione o estabelecimento"}
-            selectedKeys={form.establishmentId ? [form.establishmentId] : []}
-            onSelectionChange={(keys) => {
-              const selected = Array.from(keys)[0] as string;
-              setForm({ ...form, establishmentId: selected });
-            }}
-            isRequired
-            isDisabled={loadingEstablishments}
-          >
-            {establishments.map((est) => (
-              <SelectItem key={est.id} value={est.id}>{est.name}</SelectItem>
-            ))}
-          </Select>
+          <div>
+            <EstablishmentSearch
+              onEstablishmentSelect={handleEstablishmentSelect}
+              selectedEstablishment={selectedEstablishment}
+            />
+            {selectedEstablishment && (
+              <div className="mt-2 p-2 bg-gray-50 border border-gray-200 rounded">
+                <div className="text-xs text-gray-600">
+                  <strong>Endereço:</strong> {selectedEstablishment.address}
+                </div>
+              </div>
+            )}
+          </div>
         )}
-
         {/* Informação para owners */}
         {isOwner && (
           <div className="p-4 bg-blue-50 border border-blue-200 rounded-md">
@@ -215,9 +296,10 @@ export default function NovoEventoPage() {
             label="Preço"
             name="price"
             value={ticketForm.price}
-            onChange={handleTicketChange}
-            type="number"
-            min={0}
+            onChange={({ target: { value } }) => {
+              moneyMask(value)
+            }}
+            placeholder="R$ 100,00"
           />
           <Input
             label="Quantidade"

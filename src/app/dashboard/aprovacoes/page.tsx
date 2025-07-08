@@ -1,16 +1,18 @@
 "use client"
 import { useState, useEffect } from "react";
-import { Card, CardBody, CardHeader, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Button, Input, Chip, Pagination, useDisclosure, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Spinner } from "@nextui-org/react";
+import { Card, CardBody, CardHeader, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Button, Input, Chip, Pagination, useDisclosure, Spinner } from "@nextui-org/react";
 import { SearchIcon, CheckIcon, XIcon, EyeIcon, CalendarIcon, MapPinIcon, UserIcon } from "lucide-react";
 import { useAuth } from "@/context/authContext";
 import axios from "axios";
+import Modal from '@/components/Modal';
+import moment from "moment";
 
 interface PendingEvent {
   id: string;
   name: string;
   description: string;
-  date: string;
-  time: string;
+  dateTimestamp: string;
+  endTimestamp?: string;
   address: string;
   promoter: {
     id: string;
@@ -21,7 +23,7 @@ interface PendingEvent {
     id: string;
     name: string;
   };
-  status: "PENDING" | "APPROVED" | "REJECTED";
+  status: "PENDING" | "APPROVE" | "REJECT";
   createdAt: string;
 }
 
@@ -34,6 +36,13 @@ export default function AprovacoesPage() {
   const [selectedEvent, setSelectedEvent] = useState<PendingEvent | null>(null);
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
   const [processingAction, setProcessingAction] = useState<string | null>(null);
+  
+  // Estados para o modal de confirmação
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<'approve' | 'reject' | null>(null);
+  const [confirmEventId, setConfirmEventId] = useState<string | null>(null);
+  const [confirmMessage, setConfirmMessage] = useState('');
+  const [confirmTitle, setConfirmTitle] = useState('');
 
   const rowsPerPage = 10;
 
@@ -45,10 +54,11 @@ export default function AprovacoesPage() {
 
   const fetchPendingEvents = async () => {
     if (token === null) return;
+    if (!user?.establishment?.id) return;
 
     setLoading(true);
     try {
-      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/admin/events/pending-approval`, {
+      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/event/pending-approvals/${user.establishment.id}`, {
         headers: {
           'authorization': `Bearer ${token}`
         }
@@ -72,7 +82,7 @@ export default function AprovacoesPage() {
 
     setProcessingAction(eventId);
     try {
-      await axios.put(`${process.env.NEXT_PUBLIC_API_URL}/admin/events/${eventId}/approve`, {}, {
+      await axios.put(`${process.env.NEXT_PUBLIC_API_URL}/event/approve/${eventId}`, {}, {
         headers: {
           'authorization': `Bearer ${token}`
         }
@@ -81,14 +91,21 @@ export default function AprovacoesPage() {
       // Atualizar localmente
       setPendingEvents(prev => prev.map(event => 
         event.id === eventId 
-          ? { ...event, status: "APPROVED" as const }
+          ? { ...event, status: "APPROVE" as const }
           : event
       ));
       
-      alert('Evento aprovado com sucesso!');
+      // Mostrar modal de sucesso
+      setConfirmTitle('Sucesso!');
+      setConfirmMessage('Evento aprovado com sucesso!');
+      setConfirmAction(null);
+      setShowConfirmModal(true);
     } catch (error) {
       console.error('Erro ao aprovar evento:', error);
-      alert('Erro ao aprovar evento. Tente novamente.');
+      setConfirmTitle('Erro');
+      setConfirmMessage('Erro ao aprovar evento. Tente novamente.');
+      setConfirmAction(null);
+      setShowConfirmModal(true);
     } finally {
       setProcessingAction(null);
     }
@@ -99,7 +116,7 @@ export default function AprovacoesPage() {
 
     setProcessingAction(eventId);
     try {
-      await axios.put(`${process.env.NEXT_PUBLIC_API_URL}/admin/events/${eventId}/reject`, {}, {
+      await axios.put(`${process.env.NEXT_PUBLIC_API_URL}/event/reject/${eventId}`, {}, {
         headers: {
           'authorization': `Bearer ${token}`
         }
@@ -108,24 +125,63 @@ export default function AprovacoesPage() {
       // Atualizar localmente
       setPendingEvents(prev => prev.map(event => 
         event.id === eventId 
-          ? { ...event, status: "REJECTED" as const }
+          ? { ...event, status: "REJECT" as const }
           : event
       ));
       
-      alert('Evento rejeitado com sucesso!');
+      // Mostrar modal de sucesso
+      setConfirmTitle('Sucesso!');
+      setConfirmMessage('Evento rejeitado com sucesso!');
+      setConfirmAction(null);
+      setShowConfirmModal(true);
     } catch (error) {
       console.error('Erro ao rejeitar evento:', error);
-      alert('Erro ao rejeitar evento. Tente novamente.');
+      setConfirmTitle('Erro');
+      setConfirmMessage('Erro ao rejeitar evento. Tente novamente.');
+      setConfirmAction(null);
+      setShowConfirmModal(true);
     } finally {
       setProcessingAction(null);
     }
   };
 
+  // Funções para abrir modais de confirmação
+  const openApproveConfirm = (eventId: string) => {
+    setConfirmTitle('Confirmar Aprovação');
+    setConfirmMessage('Tem certeza que deseja aprovar este evento?');
+    setConfirmAction('approve');
+    setConfirmEventId(eventId);
+    setShowConfirmModal(true);
+  };
+
+  const openRejectConfirm = (eventId: string) => {
+    setConfirmTitle('Confirmar Rejeição');
+    setConfirmMessage('Tem certeza que deseja rejeitar este evento?');
+    setConfirmAction('reject');
+    setConfirmEventId(eventId);
+    setShowConfirmModal(true);
+  };
+
+  // Função para executar ação confirmada
+  const executeConfirmedAction = async () => {
+    if (!confirmEventId || !confirmAction) return;
+    
+    if (confirmAction === 'approve') {
+      await handleApproveEvent(confirmEventId);
+    } else if (confirmAction === 'reject') {
+      await handleRejectEvent(confirmEventId);
+    }
+    
+    setShowConfirmModal(false);
+    setConfirmAction(null);
+    setConfirmEventId(null);
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "PENDING": return "warning";
-      case "APPROVED": return "success";
-      case "REJECTED": return "danger";
+      case "APPROVE": return "success";
+      case "REJECT": return "danger";
       default: return "default";
     }
   };
@@ -133,19 +189,30 @@ export default function AprovacoesPage() {
   const getStatusText = (status: string) => {
     switch (status) {
       case "PENDING": return "Pendente";
-      case "APPROVED": return "Aprovado";
-      case "REJECTED": return "Rejeitado";
+      case "APPROVE": return "Aprovado";
+      case "REJECT": return "Rejeitado";
       default: return "Desconhecido";
     }
   };
 
   const filteredEvents = pendingEvents.filter(event =>
     event.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    event.promoter.name.toLowerCase().includes(searchTerm.toLowerCase())
+    event.promoter?.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const pages = Math.ceil(filteredEvents.length / rowsPerPage);
   const items = filteredEvents.slice((page - 1) * rowsPerPage, page * rowsPerPage);
+
+  // Verificar se o usuário tem estabelecimento
+  if (!user?.establishment?.id) {
+    return (
+      <div className="p-6">
+        <div className="flex justify-center items-center h-64">
+          <p className="text-gray-500">Você precisa ter um estabelecimento para ver aprovações de eventos.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">
@@ -188,21 +255,26 @@ export default function AprovacoesPage() {
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-col">
-                      <p className="text-bold text-small">{event.promoter.name}</p>
-                      <p className="text-tiny text-gray-500">{event.promoter.email}</p>
+                      <p className="text-bold text-small">{event.promoter?.name || 'N/A'}</p>
+                      <p className="text-tiny text-gray-500">{event.promoter?.email || 'N/A'}</p>
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-col">
                       <p className="text-bold text-small">
-                        {new Date(event.date).toLocaleDateString('pt-BR')}
+                        {moment(event.dateTimestamp).format('DD/MM/YYYY')}
                       </p>
-                      <p className="text-tiny text-gray-500">{event.time}</p>
+                      <div className="text-tiny text-gray-500">
+                        <p><strong>Início:</strong> {moment(event.dateTimestamp).format('HH:mm')}</p>
+                        {event.endTimestamp && (
+                          <p><strong>Término:</strong> {moment(event.endTimestamp).format('HH:mm')}</p>
+                        )}
+                      </div>
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-col">
-                      <p className="text-bold text-small">{event.address}</p>
+                      <p className="text-bold text-small">{event.address || 'N/A'}</p>
                     </div>
                   </TableCell>
                   <TableCell>
@@ -232,7 +304,7 @@ export default function AprovacoesPage() {
                             size="sm"
                             color="success"
                             variant="flat"
-                            onPress={() => handleApproveEvent(event.id)}
+                            onPress={() => openApproveConfirm(event.id)}
                             isLoading={processingAction === event.id}
                           >
                             <CheckIcon size={16} />
@@ -242,7 +314,7 @@ export default function AprovacoesPage() {
                             size="sm"
                             color="danger"
                             variant="flat"
-                            onPress={() => handleRejectEvent(event.id)}
+                            onPress={() => openRejectConfirm(event.id)}
                             isLoading={processingAction === event.id}
                           >
                             <XIcon size={16} />
@@ -269,49 +341,94 @@ export default function AprovacoesPage() {
         </>
       )}
 
-      {/* Modal de Visualização */}
-      <Modal isOpen={isOpen} onOpenChange={onOpenChange} size="2xl">
-        <ModalContent>
-          <ModalHeader>Detalhes do Evento</ModalHeader>
-          <ModalBody>
-            {selectedEvent && (
-              <div className="space-y-4">
-                <div>
-                  <strong>Nome do Evento:</strong> {selectedEvent.name}
-                </div>
-                <div>
-                  <strong>Descrição:</strong> {selectedEvent.description}
-                </div>
-                <div>
-                  <strong>Data:</strong> {new Date(selectedEvent.date).toLocaleDateString('pt-BR')}
-                </div>
-                <div>
-                  <strong>Hora:</strong> {selectedEvent.time}
-                </div>
-                <div>
-                  <strong>Endereço:</strong> {selectedEvent.address}
-                </div>
-                <div>
-                  <strong>Estabelecimento:</strong> {selectedEvent.establishment.name}
-                </div>
-                <div>
-                  <strong>Promoter:</strong> {selectedEvent.promoter.name} ({selectedEvent.promoter.email})
-                </div>
-                <div>
-                  <strong>Status:</strong> {getStatusText(selectedEvent.status)}
-                </div>
-                <div>
-                  <strong>Data de Solicitação:</strong> {new Date(selectedEvent.createdAt).toLocaleString('pt-BR')}
-                </div>
+      {/* Modal de Detalhes do Evento */}
+      <Modal open={isOpen} setOpen={onOpenChange}>
+        <div className="p-6">
+          <h3 className="text-lg font-semibold mb-4">Detalhes do Evento</h3>
+          {selectedEvent && (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Nome do Evento</label>
+                <p className="mt-1 text-sm text-gray-900">{selectedEvent.name}</p>
               </div>
-            )}
-          </ModalBody>
-          <ModalFooter>
-            <Button color="danger" variant="flat" onPress={onOpenChange}>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Descrição</label>
+                <p className="mt-1 text-sm text-gray-900">{selectedEvent.description}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Data</label>
+                <p className="mt-1 text-sm text-gray-900">{moment(selectedEvent.dateTimestamp).format('DD/MM/YYYY')}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Hora</label>
+                <p className="text-sm text-gray-900">{moment(selectedEvent.dateTimestamp).format('HH:mm')}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Endereço</label>
+                <p className="mt-1 text-sm text-gray-900">{selectedEvent.address || 'N/A'}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Estabelecimento</label>
+                <p className="mt-1 text-sm text-gray-900">{selectedEvent.establishment?.name || 'N/A'}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Promoter</label>
+                <p className="mt-1 text-sm text-gray-900">{selectedEvent.promoter?.name || 'N/A'} ({selectedEvent.promoter?.email || 'N/A'})</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Status</label>
+                <Chip
+                  className="capitalize mt-1"
+                  color={getStatusColor(selectedEvent.status) as any}
+                  size="sm"
+                  variant="flat"
+                >
+                  {getStatusText(selectedEvent.status)}
+                </Chip>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Data de Solicitação</label>
+                <p className="mt-1 text-sm text-gray-900">{new Date(selectedEvent.createdAt).toLocaleString('pt-BR')}</p>
+              </div>
+            </div>
+          )}
+          <div className="mt-6 flex justify-end">
+            <Button
+              color="primary"
+              variant="flat"
+              onPress={onOpenChange}
+            >
               Fechar
             </Button>
-          </ModalFooter>
-        </ModalContent>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal de Confirmação */}
+      <Modal open={showConfirmModal} setOpen={setShowConfirmModal}>
+        <div className="p-6 bg-white">
+          <h3 className="text-lg font-semibold mb-4 text-orange-600">{confirmTitle}</h3>
+          <p className="text-sm text-gray-700 mb-6">{confirmMessage}</p>
+          
+          <div className="flex justify-end gap-3">
+            {confirmAction && (
+              <Button
+                color="default"
+                variant="flat"
+                onPress={() => setShowConfirmModal(false)}
+              >
+                Cancelar
+              </Button>
+            )}
+            <Button
+              color={confirmAction ? (confirmAction === 'approve' ? 'success' : 'danger') : 'primary'}
+              variant="flat"
+              onPress={confirmAction ? executeConfirmedAction : () => setShowConfirmModal(false)}
+            >
+              {confirmAction ? (confirmAction === 'approve' ? 'Aprovar' : 'Rejeitar') : 'OK'}
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

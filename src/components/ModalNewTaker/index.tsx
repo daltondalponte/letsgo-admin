@@ -18,16 +18,16 @@ export function ModalNewTaker({ evento, onClose, callback, ...rest }: Props) {
 
     const handleSubmit = async () => {
         try {
-
             if (!emailRegex.test(email)) {
                 alert("Email inválido.")
                 return
             }
             setLoading(true)
 
-            const { data } = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/event/update-event-takers/${evento.id}`, {
-                establishmentId: evento.establishmentId,
-                ticketTakers: [...evento.ticketTakers, email]
+            // Aqui, garantir que o endpoint e a lógica estejam corretos para recepcionista
+            const { data } = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/event-manager/create`, {
+                eventId: evento.id,
+                userUid: email.toLowerCase().trim()
             }, {
                 headers: {
                     'Content-Type': 'application/json',
@@ -35,20 +35,7 @@ export function ModalNewTaker({ evento, onClose, callback, ...rest }: Props) {
                 }
             })
 
-            const items = localStorage.getItem("@evets-letsgo")
-
-            if (items) {
-                const events = JSON.parse(items) as Event[]
-                const index = events.findIndex(e => e.id === evento.id)
-                events.splice(index, 1, {
-                    ...evento,
-                    ticketTakers: [...evento.ticketTakers, email]
-                })
-
-                localStorage.removeItem("@evets-letsgo")
-                localStorage.setItem("@evets-letsgo", JSON.stringify(events))
-                callback()
-            }
+            callback()
 
             if (onClose)
                 onClose()
@@ -71,10 +58,10 @@ export function ModalNewTaker({ evento, onClose, callback, ...rest }: Props) {
             <ModalContent>
                 {(onClose) => (
                     <>
-                        <ModalHeader className="flex flex-col gap-1">Novo conferente</ModalHeader>
+                        <ModalHeader className="flex flex-col gap-1">Novo Recepcionista</ModalHeader>
                         <ModalBody>
                             <Input
-                                label="Email"
+                                label="Email do Recepcionista"
                                 value={email}
                                 onChange={({ target: { value } }) => {
                                     setEmail(value)

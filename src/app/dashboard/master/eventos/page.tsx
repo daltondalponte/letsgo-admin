@@ -12,6 +12,7 @@ interface Event {
   name: string;
   description: string;
   dateTimestamp: string;
+  endTimestamp?: string;
   photos: string[];
   establishment: {
     id: string;
@@ -163,9 +164,19 @@ export default function EventosMasterPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-2">
-                      <CalendarIcon size={16} />
-                      <span className="text-theme-primary">{event.dateTimestamp ? moment(event.dateTimestamp).format('DD/MM/YYYY HH:mm') : ""}</span>
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-2">
+                        <CalendarIcon size={16} />
+                        <span className="text-theme-primary text-sm">
+                          {event.dateTimestamp ? moment(event.dateTimestamp).format('DD/MM/YYYY') : ""}
+                        </span>
+                      </div>
+                      <div className="text-xs text-theme-secondary">
+                        <span><strong>Início:</strong> {event.dateTimestamp ? moment(event.dateTimestamp).format('HH:mm') : ""}</span>
+                        {event.endTimestamp && (
+                          <span className="block"><strong>Término:</strong> {moment(event.endTimestamp).format('HH:mm')}</span>
+                        )}
+                      </div>
                     </div>
                   </TableCell>
                   <TableCell>
@@ -248,9 +259,17 @@ export default function EventosMasterPage() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <div>
                         <label className="text-sm font-medium text-theme-tertiary">Data e Hora</label>
-                        <div className="flex items-center gap-2 mt-1">
-                          <CalendarIcon size={16} />
-                          <p className="text-lg text-theme-primary">{moment(selectedEvent.dateTimestamp).format('DD/MM/YYYY HH:mm')}</p>
+                        <div className="flex flex-col gap-1 mt-1">
+                          <div className="flex items-center gap-2">
+                            <CalendarIcon size={16} />
+                            <p className="text-lg text-theme-primary">{moment(selectedEvent.dateTimestamp).format('DD/MM/YYYY')}</p>
+                          </div>
+                          <div className="text-sm text-theme-secondary">
+                            <p><strong>Início:</strong> {moment(selectedEvent.dateTimestamp).format('HH:mm')}</p>
+                            {selectedEvent.endTimestamp && (
+                              <p><strong>Término:</strong> {moment(selectedEvent.endTimestamp).format('HH:mm')}</p>
+                            )}
+                          </div>
                         </div>
                       </div>
                       <div>

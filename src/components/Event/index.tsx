@@ -3,16 +3,18 @@ import { ChangeEvent, useCallback, useEffect, useMemo, useState, useTransition }
 import { useAuth } from "@/context/authContext";
 
 import { Accordion, AccordionItem, Avatar, BreadcrumbItem, Breadcrumbs, Button, Divider, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Pagination, Switch, useDisclosure, Select, SelectItem, Chip, Card, CardBody, CardHeader, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Image } from "@nextui-org/react";
-import { BanknotesIcon, MagnifyingGlassCircleIcon, PhotoIcon, PlusCircleIcon, TicketIcon, TrashIcon, EyeIcon, CalendarIcon, MapPinIcon, UsersIcon } from "@heroicons/react/24/outline";
+import { BanknotesIcon, MagnifyingGlassCircleIcon, PhotoIcon, PlusCircleIcon, TicketIcon, TrashIcon, EyeIcon, CalendarIcon, MapPinIcon, UsersIcon, PlusIcon } from "@heroicons/react/24/outline";
 import type { Event } from "@/types/Letsgo";
 import axios from "axios";
-import moment from "moment";
+import moment from "moment-timezone";
 import { useRouter } from "next-nprogress-bar";
 import "moment/locale/pt-br"
 import { useAtom } from "jotai";
+import { ModalFormTicket } from "@/components/ModalFormTicket";
 
 interface Props {
     events: Event[]
+    onEventsUpdate?: () => void
 }
 
 interface Establishment {
@@ -23,7 +25,7 @@ interface Establishment {
 }
 
 const rowsPerPage = 10
-export function ListEvents({ events }: Props) {
+export function ListEvents({ events, onEventsUpdate }: Props) {
     const { user, token } = useAuth();
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
@@ -34,6 +36,8 @@ export function ListEvents({ events }: Props) {
     const [filterValue, setFilterValue] = useState("");
     const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
     const hasSearchFilter = Boolean(filterValue);
+
+
 
     // Novos estados para estabelecimentos e aprovação
     const [establishments, setEstablishments] = useState<Establishment[]>([]);
@@ -200,7 +204,7 @@ export function ListEvents({ events }: Props) {
             // Determinar o establishmentId baseado no tipo de usuário
             let establishmentId = selectedEstablishment;
             if (isOwner) {
-                establishmentId = user?.establishmentId;
+                establishmentId = user?.establishmentId || '';
             }
 
             const formData = {
@@ -235,8 +239,6 @@ export function ListEvents({ events }: Props) {
                 setError("Seu evento foi criado com sucesso!")
             }
             
-            onClose()
-
         } catch (error) {
             console.error(error);
             setError("Ocorreu um erro")
@@ -260,7 +262,8 @@ export function ListEvents({ events }: Props) {
             case "PENDING": return "warning";
             case "APPROVED": return "success";
             case "REJECTED": return "danger";
-            default: return "default";
+            case "FINALIZADO": return "default";
+            default: return "success";
         }
     };
 
@@ -269,6 +272,7 @@ export function ListEvents({ events }: Props) {
             case "PENDING": return "Aguardando Aprovação";
             case "APPROVED": return "Aprovado";
             case "REJECTED": return "Rejeitado";
+            case "FINALIZADO": return "Finalizado";
             default: return "Ativo";
         }
     };
@@ -278,11 +282,69 @@ export function ListEvents({ events }: Props) {
     const { isOpen, onOpen, onOpenChange } = useDisclosure();
     const { isOpen: isOpenModalTicket, onOpen: onOpenModalTicket, onOpenChange: onOpenChangeModalTicket } = useDisclosure();
     const { isOpen: isOpenDetails, onOpen: onOpenDetails, onOpenChange: onOpenChangeDetails } = useDisclosure();
+    
+    // Estados para vinculação de recepcionistas
+    const { isOpen: isOpenReceptionistModal, onOpen: onOpenReceptionistModal, onOpenChange: onOpenChangeReceptionistModal } = useDisclosure();
+    const [selectedEventForReceptionist, setSelectedEventForReceptionist] = useState<Event | null>(null);
+    const [availableReceptionists, setAvailableReceptionists] = useState<any[]>([]);
+    const [loadingReceptionists, setLoadingReceptionists] = useState(false);
     const [isOpenTicketsModal, setIsOpenTicketsModal] = useState(false);
     const [selectedTicketsEvent, setSelectedTicketsEvent] = useState<Event | null>(null);
 
+    // Adicionar estados para controlar o modal de ticket
+    const [isOpenTicketForm, setIsOpenTicketForm] = useState(false);
+    const [ticketToEdit, setTicketToEdit] = useState<any>(null);
+
+    // Função para abrir modal de novo ticket
+    const handleAddNewTicket = () => {
+      setTicketToEdit(null);
+      setIsOpenTicketForm(true);
+    };
+
+    // Função para abrir modal de edição de ticket
+    const handleEditTicket = (ticket: any) => {
+      setTicketToEdit(ticket);
+      setIsOpenTicketForm(true);
+    };
+
+    // Função para atualizar tickets após salvar/editar
+    const refreshTickets = async () => {
+      if (!selectedTicketsEvent || !token) return;
+      // Buscar evento atualizado
+      const response = await axios.get(`/api/event/find-by-id/${selectedTicketsEvent.id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      setSelectedTicketsEvent(response.data.event);
+      if (onEventsUpdate) onEventsUpdate();
+    };
+
+    // Função para deletar ticket
+    const handleDeleteTicket = async (ticketId: string) => {
+      if (!token || !selectedTicketsEvent) return;
+
+      try {
+        await axios.delete(`/api/ticket/delete/${ticketId}`, {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+
+        // Atualizar a lista de tickets
+        await refreshTickets();
+      } catch (error: any) {
+        console.error('Erro ao deletar ticket:', error);
+        setError('Erro ao deletar ticket');
+      }
+    };
+
     // Função para abrir o modal de tickets
     const handleOpenTicketsModal = (event: Event) => {
+        if (!event?.id) {
+            alert('Evento inválido. Não é possível gerenciar ingressos para este evento.');
+            return;
+        }
         setSelectedTicketsEvent(event);
         setIsOpenTicketsModal(true);
     };
@@ -292,10 +354,111 @@ export function ListEvents({ events }: Props) {
         setSelectedTicketsEvent(null);
     };
 
+    // Função para abrir o modal de vinculação de recepcionistas
+    const handleOpenReceptionistModal = async (event: Event) => {
+        setSelectedEventForReceptionist(event);
+        setAvailableReceptionists([]);
+        onOpenReceptionistModal();
+        
+        // Carregar automaticamente todos os recepcionistas disponíveis
+        await loadAllAvailableReceptionists();
+    };
+
+    // Função para carregar todos os recepcionistas disponíveis
+    const loadAllAvailableReceptionists = async () => {
+        if (!token) return;
+
+        setLoadingReceptionists(true);
+        try {
+            const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/admin/users/ticket-takers`, {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
+            
+            setAvailableReceptionists(response.data.ticketTakers || []);
+        } catch (error: any) {
+            console.error('Erro ao carregar recepcionistas:', error);
+            setAvailableReceptionists([]);
+        } finally {
+            setLoadingReceptionists(false);
+        }
+    };
+
+    // Função para vincular recepcionista ao evento
+    const linkReceptionistToEvent = async (receptionistId: string) => {
+        if (!selectedEventForReceptionist || !token) return;
+
+        try {
+            const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/event-manager/create`, {
+                eventId: selectedEventForReceptionist.id,
+                userUid: receptionistId
+            }, {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
+
+            // Fechar o modal e atualizar os dados
+            onOpenChangeReceptionistModal();
+            if (onEventsUpdate) {
+                onEventsUpdate();
+            }
+        } catch (error: any) {
+            let msg = 'Erro ao vincular recepcionista ao evento';
+            if (error?.response?.data?.message) {
+                if (typeof error.response.data.message === 'string' && error.response.data.message.includes('já está vinculado')) {
+                    msg = 'Este recepcionista já está vinculado a este evento.';
+                } else {
+                    msg = error.response.data.message;
+                }
+            }
+            setError(msg);
+        }
+    };
+
+    // Função para desvincular recepcionista do evento
+    const unlinkReceptionistFromEvent = async (eventId: string, receptionistId: string) => {
+        if (!token) return;
+
+        try {
+            // Primeiro, buscar o event manager para obter o ID
+            const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/event-manager/find-by-event/${eventId}`, {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
+
+            const eventManager = response.data.managers.find((manager: any) => manager.user.id === receptionistId);
+            
+            if (!eventManager) {
+                setError('Recepcionista não encontrado neste evento');
+                return;
+            }
+
+            // Deletar o event manager
+            await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/event-manager/delete/${eventManager.id}`, {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
+
+            // Atualizar os dados sem recarregar a página
+            if (onEventsUpdate) {
+                onEventsUpdate();
+            }
+        } catch (error: any) {
+            console.error('Erro ao desvincular recepcionista:', error);
+            setError('Erro ao desvincular recepcionista do evento');
+        }
+    };
+
     return (
         <div className="space-y-6 w-full max-w-6xl mx-auto">
             <div className="flex justify-between items-center mb-2">
-                <h1 className="text-2xl font-bold text-theme-primary">Meus Eventos</h1>
+                <h1 className="text-2xl font-bold text-theme-primary">
+                    {isOwner ? "Todos os Eventos" : "Meus Eventos"}
+                </h1>
                 <Button
                     onPress={() => router.push('/dashboard/eventos/novo')}
                     className="bg-[#FF6600] text-white font-bold shadow-none"
@@ -323,16 +486,17 @@ export function ListEvents({ events }: Props) {
                             <TableColumn className="min-w-[200px]">LOCAL</TableColumn>
                             <TableColumn>DATA</TableColumn>
                             <TableColumn>STATUS</TableColumn>
+                            <TableColumn>CRIADO POR</TableColumn>
                             <TableColumn>INGRESSOS</TableColumn>
-                            <TableColumn>Administradores</TableColumn>
+                            <TableColumn>RECEPCIONISTAS</TableColumn>
                         </TableHeader>
                         <TableBody
-                            // itemKey removido, não existe na tipagem do TableBody
                             emptyContent={!events.length ? "Nenhum evento encontrado" : "Carregando..."}
                             items={items}
                         >
                             {(event) => (
                                 <TableRow key={event.id} className="hover:bg-content2 transition border-b border-default-100">
+                                    {/* 1. EVENTO */}
                                     <TableCell>
                                         <div className="flex items-center gap-2">
                                             {event.photos && event.photos.length > 0 && (
@@ -348,55 +512,113 @@ export function ListEvents({ events }: Props) {
                                             </div>
                                         </div>
                                     </TableCell>
+                                    {/* 2. LOCAL */}
                                     <TableCell className="min-w-[200px]">
-                                        <div>
-                                            <p className="font-medium text-theme-primary leading-tight">{event.establishment?.name ? String(event.establishment.name) : '-'}</p>
-                                            {/* Endereço removido */}
-                                        </div>
+                                        <p className="font-medium text-theme-primary leading-tight">{event.establishment?.name ? String(event.establishment.name) : '-'}</p>
                                     </TableCell>
+                                    {/* 3. DATA */}
                                     <TableCell>
-                                        <div className="flex items-center gap-1">
-                                            <CalendarIcon className="w-4 h-4 text-default-400" />
-                                            <span className="text-theme-primary font-medium">
-                                                {event.dateTimestamp ? moment(event.dateTimestamp).format('DD/MM/YYYY HH:mm') : ""}
-                                            </span>
+                                        <div className="flex flex-col gap-1">
+                                            <div className="flex items-center gap-1">
+                                                <CalendarIcon className="w-4 h-4 text-default-400" />
+                                                <span className="text-theme-primary font-medium text-sm">
+                                                    {event.dateTimestamp ? moment(String(event.dateTimestamp)).format('DD/MM/YYYY') : ""}
+                                                </span>
+                                            </div>
+                                            <div className="flex flex-col text-xs text-default-500">
+                                                <span>
+                                                    <strong>Início:</strong> {event.dateTimestamp ? moment(String(event.dateTimestamp)).format('HH:mm') : ""}
+                                                </span>
+                                                {event.endTimestamp && (
+                                                    <span>
+                                                        <strong>Término:</strong> {moment(String(event.endTimestamp)).format('HH:mm')}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
                                     </TableCell>
+                                    {/* 4. STATUS */}
                                     <TableCell>
                                         <Chip color={getStatusColor(event.approvalStatus) as any} variant="flat" size="sm" className="text-xs px-2">
                                             {getStatusText(event.approvalStatus)}
                                         </Chip>
                                     </TableCell>
+                                    {/* 5. CRIADO POR */}
                                     <TableCell>
-                                        <div className="flex items-center gap-2 justify-center">
+                                        <div className="flex items-center gap-1">
+                                            <UsersIcon className="w-4 h-4 text-default-400" />
+                                            <span className="text-theme-primary font-medium">
+                                                {isOwner 
+                                                    ? (event.creator?.name || (event.useruid === user?.uid ? "Você" : "-"))
+                                                    : "-"
+                                                }
+                                            </span>
+                                        </div>
+                                    </TableCell>
+                                    {/* 6. INGRESSOS */}
+                                    <TableCell>
+                                        <Button
+                                            variant="light"
+                                            className="flex items-center gap-2 justify-center"
+                                            isDisabled={isOwner && event.creator?.type === 'PROFESSIONAL_PROMOTER'}
+                                            onPress={() => {
+                                                handleOpenTicketsModal(event)
+                                            }}
+                                            title="Gerenciar Ingressos"
+                                        >
+                                            <TicketIcon className="w-5 h-5 text-default-400" />
+                                            <span className="text-theme-primary font-medium">
+                                                {event.tickets ? event.tickets.length : 0}
+                                            </span>
+                                        </Button>
+                                    </TableCell>
+                                    {/* 7. RECEPCIONISTAS */}
+                                    <TableCell>
+                                        <div className="flex items-center gap-2">
+                                            {event.managers && event.managers.length > 0 ? (
+                                                <>
+                                                    {event.managers.map((manager: any) => (
+                                                        <span key={manager.id} className="flex items-center gap-1">
+                                                            <span className="text-xs text-theme-primary font-medium">
+                                                                {manager.user?.name || manager.name}
+                                                            </span>
+                                                            <Button
+                                                                isIconOnly
+                                                                size="sm"
+                                                                variant="light"
+                                                                color="danger"
+                                                                className="text-danger-500"
+                                                                isDisabled={isOwner && event.creator?.type === 'PROFESSIONAL_PROMOTER'}
+                                                                onPress={() => {
+                                                                    unlinkReceptionistFromEvent(event.id, manager.user?.uid)
+                                                                }}
+                                                                title="Remover Recepcionista"
+                                                            >
+                                                                <TrashIcon className="w-3 h-3" />
+                                                            </Button>
+                                                        </span>
+                                                    ))}
+                                                </>
+                                            ) : (
+                                                <span>-</span>
+                                            )}
                                             <Button
                                                 isIconOnly
                                                 size="sm"
                                                 variant="light"
                                                 className="text-default-500"
-                                                onPress={() => handleOpenTicketsModal(event)}
-                                                title="Ingressos"
+                                                onPress={() => {
+                                                    if (isOwner && event.creator?.type === 'PROFESSIONAL_PROMOTER') {
+                                                        alert('Owners não podem adicionar recepcionistas em eventos de promoters.');
+                                                        return;
+                                                    }
+                                                    handleOpenReceptionistModal(event)
+                                                }}
+                                                title="Vincular Recepcionistas"
                                             >
-                                                <TicketIcon className="w-5 h-5" />
+                                                <PlusIcon className="w-4 h-4" />
                                             </Button>
-                                            <span className="text-xs text-theme-secondary font-semibold">
-                                                {event.tickets ? event.tickets.length : 0}
-                                            </span>
                                         </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        {/* Exibir nomes dos administradores, se disponíveis */}
-                                        {event.managers && event.managers.length > 0 ? (
-                                            <div className="flex flex-col gap-1">
-                                                {event.managers.map((manager: any) => (
-                                                    <span key={manager.id} className="text-xs text-theme-primary font-medium">
-                                                        {manager.name}
-                                                    </span>
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <span className="text-xs text-theme-secondary">-</span>
-                                        )}
                                     </TableCell>
                                 </TableRow>
                             )}
@@ -611,12 +833,12 @@ export function ListEvents({ events }: Props) {
                                                 <label className="text-sm font-medium text-theme-tertiary">Data e Hora</label>
                                                 <div className="flex items-center gap-2 mt-1">
                                                     <CalendarIcon className="w-4 h-4" />
-                                                    <p className="text-lg text-theme-primary">{moment(selectedEvent.dateTimestamp).format('DD/MM/YYYY HH:mm')}</p>
+                                                    <p className="text-lg text-theme-primary">{moment(String(selectedEvent.dateTimestamp || "")).format('DD/MM/YYYY HH:mm')}</p>
                                                 </div>
                                             </div>
                                             <div>
                                                 <label className="text-sm font-medium text-theme-tertiary">Criado em</label>
-                                                <p className="text-lg text-theme-primary">{moment(selectedEvent.createdAt).format('DD/MM/YYYY HH:mm')}</p>
+                                                <p className="text-lg text-theme-primary">{moment(String(selectedEvent.createdAt || "")).format('DD/MM/YYYY HH:mm')}</p>
                                             </div>
                                         </div>
 
@@ -688,6 +910,12 @@ export function ListEvents({ events }: Props) {
                         <>
                             <ModalHeader>Ingressos de {selectedTicketsEvent?.name}</ModalHeader>
                             <ModalBody>
+                                <Button
+                                    className="mb-4 bg-[#FF6600] text-white font-bold"
+                                    onPress={handleAddNewTicket}
+                                >
+                                    Novo Ticket
+                                </Button>
                                 {selectedTicketsEvent?.tickets && selectedTicketsEvent.tickets.length > 0 ? (
                                     selectedTicketsEvent.tickets.map((ticket: any) => (
                                         <Card key={ticket.id} className="mb-2">
@@ -696,8 +924,8 @@ export function ListEvents({ events }: Props) {
                                                     <span className="font-medium">{ticket.description}</span> - R$ {ticket.price} ({ticket.quantity_available} unid.)
                                                 </div>
                                                 <div>
-                                                    <Button size="sm" color="primary" className="mr-2">Editar</Button>
-                                                    <Button size="sm" color="danger">Remover</Button>
+                                                    <Button size="sm" color="primary" className="mr-2" onPress={() => handleEditTicket(ticket)}>Editar</Button>
+                                                    <Button size="sm" color="danger" onPress={() => handleDeleteTicket(ticket.id)}>Remover</Button>
                                                 </div>
                                             </CardBody>
                                         </Card>
@@ -713,6 +941,87 @@ export function ListEvents({ events }: Props) {
                     )}
                 </ModalContent>
             </Modal>
+
+            {/* Modal de Vinculação de Recepcionistas */}
+            <Modal isOpen={isOpenReceptionistModal} onOpenChange={onOpenChangeReceptionistModal} size="3xl">
+                <ModalContent>
+                    {(onClose) => (
+                        <>
+                            <ModalHeader>Vincular Recepcionistas ao Evento</ModalHeader>
+                            <ModalBody>
+                                <div className="space-y-4">
+                                    <div>
+                                        <h3 className="text-lg font-semibold mb-2">
+                                            {selectedEventForReceptionist?.name}
+                                        </h3>
+                                        <p className="text-sm text-gray-600 mb-4">
+                                            Selecione os recepcionistas que podem validar ingressos neste evento.
+                                        </p>
+                                    </div>
+                                    
+                                    {loadingReceptionists ? (
+                                        <div className="text-center py-8">
+                                            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                                            <p className="mt-2 text-gray-600">Carregando recepcionistas...</p>
+                                        </div>
+                                    ) : availableReceptionists.length > 0 ? (
+                                        <div className="mt-4">
+                                            <h3 className="text-lg font-semibold mb-3">Recepcionistas Disponíveis:</h3>
+                                            <div className="space-y-2 max-h-64 overflow-y-auto">
+                                                {(() => {
+                                                    const alreadyLinkedReceptionists = (selectedEventForReceptionist?.managers || []).map((m: any) => m.user?.uid || m.user?.id || m.id);
+                                                    const filteredReceptionists = availableReceptionists.filter((r) => !alreadyLinkedReceptionists.includes(r.uid));
+                                                    return filteredReceptionists.map((receptionist) => (
+                                                        <div key={receptionist.uid} className="flex items-center justify-between p-3 border rounded-lg hover:bg-blue-50 transition-colors">
+                                                            <div>
+                                                                <p className="font-medium text-orange-500 hover:text-orange-600 transition-colors">{receptionist.name}</p>
+                                                                <p className="text-sm text-gray-600">{receptionist.email}</p>
+                                                                <p className="text-xs text-gray-500">
+                                                                    Criado em: {new Date(receptionist.createdAt).toLocaleDateString('pt-BR')}
+                                                                </p>
+                                                            </div>
+                                                            <Button
+                                                                size="sm"
+                                                                color="primary"
+                                                                variant="flat"
+                                                                onPress={() => linkReceptionistToEvent(receptionist.uid)}
+                                                            >
+                                                                Vincular
+                                                            </Button>
+                                                        </div>
+                                                    ));
+                                                })()}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="text-center py-8 text-gray-500">
+                                            <p>Nenhum recepcionista encontrado no sistema.</p>
+                                            <p className="text-sm mt-2">Crie recepcionistas na página de Recepcionistas primeiro.</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </ModalBody>
+                            <ModalFooter>
+                                <Button color="default" variant="flat" onPress={onClose}>
+                                    Fechar
+                                </Button>
+                            </ModalFooter>
+                        </>
+                    )}
+                </ModalContent>
+            </Modal>
+            {error && (
+                <div className="my-4 p-3 bg-red-100 border border-red-300 text-red-700 rounded">
+                    {error}
+                </div>
+            )}
+            <ModalFormTicket
+                isOpen={isOpenTicketForm}
+                onClose={() => setIsOpenTicketForm(false)}
+                eventId={selectedTicketsEvent?.id || ""}
+                ticketToUpdate={ticketToEdit}
+                callBack={refreshTickets}
+            />
         </div>
     )
-}
+}   

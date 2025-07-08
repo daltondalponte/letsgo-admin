@@ -42,7 +42,7 @@ export function ModalFormTicket({ callBack, eventId, onClose, ticketToUpdate, ..
             }
 
             setLoading(true)
-            const url = ticketToUpdate ? `${process.env.NEXT_PUBLIC_API_URL}/ticket/update/${ticketToUpdate?.id}` : `${process.env.NEXT_PUBLIC_API_URL}/ticket/create`
+            const url = ticketToUpdate ? `${process.env.NEXT_PUBLIC_API_URL}/ticket/update` : `${process.env.NEXT_PUBLIC_API_URL}/ticket/create`
             const formData: any = {
                 eventId,
                 price: Number(String(ticketForm.price).replace("R$", '').replaceAll('.', '').replace(',', '.')),
@@ -50,6 +50,7 @@ export function ModalFormTicket({ callBack, eventId, onClose, ticketToUpdate, ..
             }
 
             if (!ticketToUpdate) formData.description = ticketForm.description
+            if (ticketToUpdate) formData.id = ticketToUpdate.id
             
             const { data } = await axios[ticketToUpdate ? "put" : "post"](url, formData, {
                 headers: {
@@ -68,11 +69,27 @@ export function ModalFormTicket({ callBack, eventId, onClose, ticketToUpdate, ..
                 onClose()
 
         } catch (error) {
-            console.error(error)
+            console.error('Erro no handleSubmit:', error)
         } finally {
             setLoading(false)
         }
     }
+
+    const handleClose = () => {
+        if (onClose) {
+            try {
+                onClose();
+            } catch (e) {
+                // Protege contra navegação inválida
+                console.error('Erro ao fechar modal:', e);
+            }
+        }
+        setTicketForm({
+            description: "",
+            price: "",
+            quantity_available: ""
+        });
+    };
 
     useEffect(() => {
 
@@ -139,10 +156,7 @@ export function ModalFormTicket({ callBack, eventId, onClose, ticketToUpdate, ..
                             <Button
                                 color="danger"
                                 variant="light"
-                                onPress={() => {
-                                    onClose()
-                                    callBack()
-                                }}>
+                                onPress={handleClose}>
                                 Fechar
                             </Button>
                             <Button

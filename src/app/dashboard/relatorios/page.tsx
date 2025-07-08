@@ -40,10 +40,12 @@ export default function RelatoriosPage() {
   const [avgTicketPrice, setAvgTicketPrice] = useState(0);
 
   useEffect(() => {
+    if (!token) return; // Só busca se tiver token
     fetchReportData();
-  }, [period, selectedEvent, startDate, endDate]);
+  }, [period, selectedEvent, startDate, endDate, token]);
 
   const fetchReportData = async () => {
+    if (!token) return;
     try {
       setLoading(true);
       

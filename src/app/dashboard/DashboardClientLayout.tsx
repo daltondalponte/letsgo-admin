@@ -22,6 +22,17 @@ export default function DashboardClientLayout({ children }: DashboardClientLayou
     const isActiveLink = (href: string) => {
         if (href === "/dashboard/master" && pathname === "/dashboard/master") return true;
         if (href === "/dashboard" && pathname === "/dashboard") return true;
+        
+        // Para evitar que subpáginas ativem páginas pai, usar match exato ou específico
+        if (href === "/dashboard/eventos") {
+            return pathname === "/dashboard/eventos" || pathname === "/dashboard/eventos/novo";
+        }
+        
+        if (href === "/dashboard/eventos/pendentes") {
+            return pathname === "/dashboard/eventos/pendentes";
+        }
+        
+        // Para outras páginas, usar startsWith mas com verificação adicional
         return pathname.startsWith(href) && href !== "/dashboard/master" && href !== "/dashboard";
     };
 
@@ -107,6 +118,12 @@ export default function DashboardClientLayout({ children }: DashboardClientLayou
                                     <span className="font-medium">Aprovações</span>
                                 </Link>
                             )}
+                            {isProfessionalPromoter && (
+                                <Link href="/dashboard/eventos/pendentes" className={getLinkClasses("/dashboard/eventos/pendentes")}>
+                                    <FileTextIcon size={20} className={getIconClasses("/dashboard/eventos/pendentes")} />
+                                    <span className="font-medium">Eventos Pendentes</span>
+                                </Link>
+                            )}
                             <Link href="/dashboard/cupons" className={getLinkClasses("/dashboard/cupons")}>
                                 <TicketIcon size={20} className={getIconClasses("/dashboard/cupons")} />
                                 <span className="font-medium">Cupons</span>
@@ -117,7 +134,7 @@ export default function DashboardClientLayout({ children }: DashboardClientLayou
                             </Link>
                             <Link href="/dashboard/administradores" className={getLinkClasses("/dashboard/administradores")}>
                                 <UsersIcon size={20} className={getIconClasses("/dashboard/administradores")} />
-                                <span className="font-medium">Administradores</span>
+                                <span className="font-medium">Recepcionistas</span>
                             </Link>
                         </>
                     )}

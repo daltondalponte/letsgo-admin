@@ -1,5 +1,5 @@
 "use client";
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
 import axios from 'axios';
 import { useRouter } from 'next/navigation';
 
@@ -29,6 +29,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const isLoggingOut = useRef(false); // Evita múltiplos redirecionamentos
 
   useEffect(() => {
     // Tenta restaurar sessão do localStorage
@@ -40,6 +41,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
     setLoading(false);
   }, []);
+
+  useEffect(() => {
+    // Interceptor global para tratar 401
+    const interceptor = axios.interceptors.response.use(
+      response => response,
+      error => {
+        if (error.response && error.response.status === 401 && !isLoggingOut.current) {
+          isLoggingOut.current = true;
+          setUser(null);
+          setToken(null);
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('user');
+          router.push('/auth/signin');
+        }
+        return Promise.reject(error);
+      }
+    );
+    return () => {
+      axios.interceptors.response.eject(interceptor);
+    };
+  }, [router]);
 
   const login = async (email: string, password: string) => {
     try {

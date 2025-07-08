@@ -10,26 +10,50 @@ export default function EventosPage() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!token || !user?.establishment?.id) {
+  const fetchEvents = async () => {
+    if (!token) {
       setLoading(false);
       return;
     }
-    const fetchEvents = async () => {
-      setLoading(true);
-      try {
-        const response = await axios.get(`/api/event/find-many-by-establishment/${user.establishment.id}`, {
+    
+    setLoading(true);
+    try {
+      let response;
+      
+      if (user?.type === "PROFESSIONAL_PROMOTER") {
+        // Promoters veem apenas eventos aprovados
+        response = await axios.get(`/api/event/find-many-by-user-approved`, {
           headers: {
             Authorization: `Bearer ${token}`
           }
         });
-        setEvents(Array.isArray(response.data.events) ? response.data.events : []);
-      } catch (error) {
-        setEvents([]);
-      } finally {
-        setLoading(false);
+      } else {
+        // Owners veem apenas eventos aprovados do estabelecimento
+        if (!user?.establishment?.id) {
+          setLoading(false);
+          return;
+        }
+        response = await axios.get(`/api/event/find-many-by-establishment-approved/${user.establishment.id}`, {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
       }
-    };
+      
+      setEvents(Array.isArray(response.data.events) ? response.data.events : []);
+    } catch (error) {
+      console.error('Erro ao buscar eventos:', error);
+      setEvents([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!token) {
+      setLoading(false);
+      return;
+    }
     fetchEvents();
   }, [token, user]);
 
@@ -39,7 +63,7 @@ export default function EventosPage() {
 
   return (
     <main className="w-full max-w-6xl mx-auto px-6 py-8">
-      <ListEvents events={events} />
+      <ListEvents events={events} onEventsUpdate={fetchEvents} />
     </main>
   );
 }

@@ -13,6 +13,7 @@ export interface Event {
     name: string;
     description: string;
     dateTimestamp: string;
+    endTimestamp?: string;
     photos: string[];
     ticketTakers: string[];
     listNames: string[];
@@ -22,7 +23,7 @@ export interface Event {
     createdAt: string;
     updatedAt: string;
     isActive: boolean;
-    approvalStatus?: "PENDING" | "APPROVED" | "REJECTED";
+    approvalStatus?: "PENDING" | "APPROVED" | "REJECTED" | "FINALIZADO";
     needsApproval?: boolean;
     promoterId?: string;
     promoter?: {
@@ -30,5 +31,12 @@ export interface Event {
         name: string;
         email: string;
     };
+    creator?: {
+        id: string;
+        name: string;
+        email: string;
+        type: string;
+    };
     tickets?: any[];
+    managers?: any[];
 }

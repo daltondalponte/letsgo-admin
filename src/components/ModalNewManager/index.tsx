@@ -80,8 +80,14 @@ export function ModalNewManager({ evento, onClose, callback, ...rest }: Props) {
             <ModalContent>
                 {(onClose) => (
                     <>
-                        <ModalHeader className="flex flex-col gap-1">Novo gerente</ModalHeader>
+                        <ModalHeader className="flex flex-col gap-1">Novo Administrador</ModalHeader>
                         <ModalBody>
+                            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                <p className="text-sm text-blue-800 font-medium mb-1">Funções Administrativas</p>
+                                <p className="text-xs text-blue-700">
+                                    Este modal é para vincular administradores (donos/promotores) com funções administrativas como criação de cupons, edição de eventos, etc. Para validadores de ingressos, use o modal de "Recepcionistas".
+                                </p>
+                            </div>
                             <Input
                                 label="Email"
                                 value={email}
