@@ -230,10 +230,27 @@ export default function CuponsPage() {
         quantity_available: Number(editCupom.quantity_available),
         description: editCupom.description || ""
       };
+      
+      // DEBUG: Log do cupom original
+      console.log('=== DEBUG EDIT CUPOM ===');
+      console.log('editCupom original:', editCupom);
+      console.log('editCupom.eventId:', editCupom.eventId);
+      console.log('typeof editCupom.eventId:', typeof editCupom.eventId);
+      console.log('editDiscountType:', editDiscountType);
+      console.log('editDiscountValue:', editDiscountValue);
+      console.log('descont_percent será:', editDiscountType === 'PERCENTAGE' ? Number(editDiscountValue) : 0);
+      console.log('discount_value será:', editDiscountType === 'FIXED' ? Number(editDiscountValue) : 0);
+      
       // Corrigido: sempre enviar eventId como string se existir, ou não enviar
       if (editCupom.eventId !== undefined && editCupom.eventId !== null && String(editCupom.eventId).trim() !== '') {
         cupomData.eventId = String(editCupom.eventId);
+        console.log('eventId será enviado:', cupomData.eventId);
+      } else {
+        console.log('eventId NÃO será enviado (undefined/null/vazio)');
       }
+      
+      console.log('cupomData final:', cupomData);
+      
       await axios.put(`${process.env.NEXT_PUBLIC_API_URL}/cupom/update?id=${editCupom.id}`, cupomData, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -470,6 +487,13 @@ export default function CuponsPage() {
                         <label className="text-sm font-medium text-gray-500">Criado em</label>
                         <p className="text-lg">{moment(selectedCupom.createdAt).format('DD/MM/YYYY HH:mm')}</p>
                       </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Válido até</label>
+                        <p className="text-lg">{moment(selectedCupom.expiresAt).format('DD/MM/YYYY HH:mm')}</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="text-sm font-medium text-gray-500">Válido até</label>
                         <p className="text-lg">{moment(selectedCupom.expiresAt).format('DD/MM/YYYY HH:mm')}</p>

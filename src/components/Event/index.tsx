@@ -607,11 +607,8 @@ export function ListEvents({ events, onEventsUpdate }: Props) {
                                                 size="sm"
                                                 variant="light"
                                                 className="text-default-500"
+                                                isDisabled={isOwner && event.creator?.type === 'PROFESSIONAL_PROMOTER'}
                                                 onPress={() => {
-                                                    if (isOwner && event.creator?.type === 'PROFESSIONAL_PROMOTER') {
-                                                        alert('Owners não podem adicionar recepcionistas em eventos de promoters.');
-                                                        return;
-                                                    }
                                                     handleOpenReceptionistModal(event)
                                                 }}
                                                 title="Vincular Recepcionistas"
