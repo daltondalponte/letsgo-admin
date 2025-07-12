@@ -39,7 +39,7 @@ export default function UsuariosPage() {
   const [editForm, setEditForm] = useState({
     establishmentName: "",
     establishmentAddress: "",
-    coordinates: null as { lat: number; lng: number } | null
+    coordinates: null as { latitude: number; longitude: number } | null
   });
   const [isSaving, setIsSaving] = useState(false);
   const [isAutocompleteActive, setIsAutocompleteActive] = useState(false);
@@ -212,18 +212,39 @@ export default function UsuariosPage() {
       let coordinates = null;
       if (user.establishment.coordinates) {
         try {
+          let parsedCoordinates;
           // Se as coordenadas já são um objeto, usar diretamente
           if (typeof user.establishment.coordinates === 'object') {
-            coordinates = user.establishment.coordinates;
+            parsedCoordinates = user.establishment.coordinates;
           } else if (typeof user.establishment.coordinates === 'string') {
             // Tentar fazer parse se for string JSON
-            coordinates = JSON.parse(user.establishment.coordinates);
+            parsedCoordinates = JSON.parse(user.establishment.coordinates);
+          } else {
+            parsedCoordinates = null;
+          }
+          
+          // Normalizar para o formato correto { latitude, longitude }
+          if (parsedCoordinates) {
+            if ('latitude' in parsedCoordinates && 'longitude' in parsedCoordinates) {
+              coordinates = {
+                latitude: Number(parsedCoordinates.latitude),
+                longitude: Number(parsedCoordinates.longitude)
+              };
+            } else if ('lat' in parsedCoordinates && 'lng' in parsedCoordinates) {
+              coordinates = {
+                latitude: Number(parsedCoordinates.lat),
+                longitude: Number(parsedCoordinates.lng)
+              };
+            }
           }
         } catch (error) {
           // Se as coordenadas estão no formato "lat,lng", converter para objeto
           if (typeof user.establishment.coordinates === 'string' && user.establishment.coordinates.includes(',')) {
             const [lat, lng] = user.establishment.coordinates.split(',');
-            coordinates = { lat: parseFloat(lat), lng: parseFloat(lng) };
+            coordinates = { 
+              latitude: parseFloat(lat), 
+              longitude: parseFloat(lng) 
+            };
           }
         }
       }
@@ -254,6 +275,11 @@ export default function UsuariosPage() {
         name: editForm.establishmentName.trim(),
         address: editForm.establishmentAddress.trim(),
         coordinates: editForm.coordinates
+          ? {
+              latitude: editForm.coordinates.latitude,
+              longitude: editForm.coordinates.longitude
+            }
+          : undefined
       };
 
       const response = await axios.put(

@@ -1,7 +1,7 @@
 "use client"
 import { useState, useEffect } from "react";
-import { Card, CardBody, CardHeader, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Button, Input, Chip, Pagination, useDisclosure, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Spinner } from "@nextui-org/react";
-import { SearchIcon, EyeIcon, CalendarIcon, MapPinIcon, ClockIcon } from "lucide-react";
+import { Card, CardBody, CardHeader, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Button, Input, Chip, Pagination, useDisclosure, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Spinner, Image } from "@nextui-org/react";
+import { SearchIcon, EyeIcon, CalendarIcon, MapPinIcon, ClockIcon, ImageIcon } from "lucide-react";
 import { useAuth } from "@/context/authContext";
 import axios from "axios";
 import moment from "moment";
@@ -20,6 +20,7 @@ interface PendingEvent {
   status: "PENDING" | "APPROVE" | "REJECT";
   createdAt: string;
   isActive: boolean;
+  photos?: string[];
 }
 
 export default function EventosPendentesPage() {
@@ -138,73 +139,102 @@ export default function EventosPendentesPage() {
             </Card>
           ) : (
             <>
-              <Table aria-label="Tabela de eventos pendentes">
-                <TableHeader>
-                  <TableColumn>EVENTO</TableColumn>
-                  <TableColumn>ESTABELECIMENTO</TableColumn>
-                  <TableColumn>DATA/HORA</TableColumn>
-                  <TableColumn>ENDEREÇO</TableColumn>
-                  <TableColumn>STATUS</TableColumn>
-                  <TableColumn>AÇÕES</TableColumn>
-                </TableHeader>
-                <TableBody>
-                  {items.map((event) => (
-                    <TableRow key={event.id}>
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <p className="text-bold">{event.name}</p>
-                          <p className="text-tiny text-gray-500">{event.description}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <p className="text-bold text-small">{event.establishment?.name || 'N/A'}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <p className="text-bold text-small">
-                            {moment(event.dateTimestamp).format('DD/MM/YYYY')}
-                          </p>
-                          <div className="text-tiny text-gray-500">
-                            <p><strong>Início:</strong> {moment(event.dateTimestamp).format('HH:mm')}</p>
-                            {event.endTimestamp && (
-                              <p><strong>Término:</strong> {moment(event.endTimestamp).format('HH:mm')}</p>
-                            )}
+              {/* Tabela responsiva */}
+              <div className="w-full overflow-x-auto">
+                <Table aria-label="Tabela de eventos pendentes" className="min-w-[800px]">
+                  <TableHeader>
+                    <TableColumn>FOTO</TableColumn>
+                    <TableColumn>EVENTO</TableColumn>
+                    <TableColumn>ESTABELECIMENTO</TableColumn>
+                    <TableColumn>DATA/HORA</TableColumn>
+                    <TableColumn>ENDEREÇO</TableColumn>
+                    <TableColumn>STATUS</TableColumn>
+                    <TableColumn>AÇÕES</TableColumn>
+                  </TableHeader>
+                  <TableBody>
+                    {items.map((event) => (
+                      <TableRow key={event.id}>
+                        <TableCell>
+                          {event.photos && event.photos.length > 0 ? (
+                            <Image
+                              src={event.photos[0]}
+                              alt={event.name || "Sem nome"}
+                              className="w-12 h-12 rounded-lg object-cover border border-default-200 shadow-sm"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 rounded-lg bg-default-100 border border-default-200 flex items-center justify-center">
+                              <ImageIcon className="w-6 h-6 text-default-400" />
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <p className="text-bold">{event.name}</p>
+                            <p
+                              className="text-tiny text-gray-500 truncate max-w-[120px] cursor-pointer"
+                              title={event.description}
+                              style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                            >
+                              {event.description}
+                            </p>
                           </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <p className="text-bold text-small">{event.address || 'N/A'}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          className="capitalize"
-                          color={getStatusColor(event.status, event.isActive) as any}
-                          size="sm"
-                          variant="flat"
-                        >
-                          {getStatusText(event.status, event.isActive)}
-                        </Chip>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <p className="text-bold text-small">{event.establishment?.name || 'N/A'}</p>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <p className="text-bold text-small">
+                              {moment(event.dateTimestamp).format('DD/MM/YYYY')}
+                            </p>
+                            <div className="text-tiny text-gray-500">
+                              <p><strong>Início:</strong> {moment(event.dateTimestamp).format('HH:mm')}</p>
+                              {event.endTimestamp && (
+                                <p><strong>Término:</strong> {moment(event.endTimestamp).format('HH:mm')}</p>
+                              )}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <p
+                              className="text-bold text-small truncate max-w-[120px] cursor-pointer"
+                              title={event.address}
+                              style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                            >
+                              {event.address || 'N/A'}
+                            </p>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            className="capitalize"
+                            color={getStatusColor(event.status, event.isActive) as any}
                             size="sm"
                             variant="flat"
-                            onPress={() => handleViewEvent(event)}
                           >
-                            <EyeIcon size={16} />
-                            Ver
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                            {getStatusText(event.status, event.isActive)}
+                          </Chip>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="flat"
+                              onPress={() => handleViewEvent(event)}
+                            >
+                              <EyeIcon size={16} />
+                              Ver detalhes
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
 
               <div className="flex justify-center mt-4">
                 <Pagination
@@ -221,39 +251,56 @@ export default function EventosPendentesPage() {
       )}
 
       {/* Modal de Visualização */}
-      <Modal isOpen={isOpen} onOpenChange={onOpenChange} size="2xl">
+      <Modal isOpen={isOpen} onOpenChange={onOpenChange} size="md">
         <ModalContent>
-          <ModalHeader>Detalhes do Evento</ModalHeader>
+          <ModalHeader className="text-center">Detalhes do Evento</ModalHeader>
           <ModalBody>
             {selectedEvent && (
-              <div className="space-y-4">
+              <div className="flex flex-col gap-4">
                 <div>
-                  <strong>Nome do Evento:</strong> {selectedEvent.name}
+                  <span className="block text-xs font-medium text-gray-400">Nome do Evento</span>
+                  <span className="block text-base font-semibold text-gray-900 break-words">{selectedEvent.name}</span>
                 </div>
                 <div>
-                  <strong>Descrição:</strong> {selectedEvent.description}
+                  <span className="block text-xs font-medium text-gray-400">Descrição</span>
+                  <span className="block text-sm text-gray-800 break-words">{selectedEvent.description}</span>
+                </div>
+                <div className="flex gap-4">
+                  <div>
+                    <span className="block text-xs font-medium text-gray-400">Data</span>
+                    <span className="block text-sm text-gray-800">{moment(selectedEvent.dateTimestamp).format('DD/MM/YYYY')}</span>
+                  </div>
+                  <div>
+                    <span className="block text-xs font-medium text-gray-400">Hora</span>
+                    <span className="block text-sm text-gray-800">{moment(selectedEvent.dateTimestamp).format('HH:mm')}</span>
+                  </div>
                 </div>
                 <div>
-                  <strong>Data:</strong> {moment(selectedEvent.dateTimestamp).format('DD/MM/YYYY')}
+                  <span className="block text-xs font-medium text-gray-400">Endereço</span>
+                  <span className="block text-sm text-gray-800 break-words">{selectedEvent.address || 'N/A'}</span>
                 </div>
                 <div>
-                  <strong>Hora:</strong> {moment(selectedEvent.dateTimestamp).format('HH:mm')}
+                  <span className="block text-xs font-medium text-gray-400">Estabelecimento</span>
+                  <span className="block text-sm text-gray-800">{selectedEvent.establishment?.name || 'N/A'}</span>
                 </div>
                 <div>
-                  <strong>Endereço:</strong> {selectedEvent.address || 'N/A'}
+                  <span className="block text-xs font-medium text-gray-400">Status</span>
+                  <Chip
+                    className="capitalize mt-1"
+                    color={getStatusColor(selectedEvent.status, selectedEvent.isActive) as any}
+                    size="sm"
+                    variant="flat"
+                  >
+                    {getStatusText(selectedEvent.status, selectedEvent.isActive)}
+                  </Chip>
                 </div>
                 <div>
-                  <strong>Estabelecimento:</strong> {selectedEvent.establishment?.name || 'N/A'}
-                </div>
-                <div>
-                  <strong>Status:</strong> {getStatusText(selectedEvent.status, selectedEvent.isActive)}
-                </div>
-                <div>
-                  <strong>Data de Solicitação:</strong> {new Date(selectedEvent.createdAt).toLocaleString('pt-BR')}
+                  <span className="block text-xs font-medium text-gray-400">Data de Solicitação</span>
+                  <span className="block text-sm text-gray-800">{new Date(selectedEvent.createdAt).toLocaleString('pt-BR')}</span>
                 </div>
                 <div className="bg-blue-50 p-4 rounded-lg">
                   <p className="text-blue-800 text-sm">
-                    <strong>Informação:</strong> Seu evento está aguardando aprovação do proprietário do estabelecimento. 
+                    <strong>Informação:</strong> Seu evento está aguardando aprovação do proprietário do estabelecimento. <br/>
                     Você será notificado assim que for aprovado ou rejeitado.
                   </p>
                 </div>
@@ -261,7 +308,7 @@ export default function EventosPendentesPage() {
             )}
           </ModalBody>
           <ModalFooter>
-            <Button color="danger" variant="flat" onPress={onOpenChange}>
+            <Button color="primary" variant="flat" onPress={onOpenChange} className="w-full">
               Fechar
             </Button>
           </ModalFooter>

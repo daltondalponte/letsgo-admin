@@ -78,7 +78,7 @@ export function ListEvents({ events, onEventsUpdate }: Props) {
             
             setEstablishments(response.data.establishments || []);
         } catch (error) {
-            console.error('Erro ao buscar estabelecimentos:', error);
+            // console.error('Erro ao buscar estabelecimentos:', error);
         } finally {
             setLoadingEstablishments(false);
         }
@@ -195,10 +195,14 @@ export function ListEvents({ events, onEventsUpdate }: Props) {
 
             // Upload da imagem via API route
             const uploadFormData = new FormData();
-            uploadFormData.append('file', selectedPhoto!);
+            
+            // Comprimir imagem antes do upload
+            const compressedPhoto = await compressImage(selectedPhoto!);
+            uploadFormData.append('file', compressedPhoto);
             uploadFormData.append('email', user?.email || '');
 
-            const uploadResponse = await axios.post('/api/upload', uploadFormData);
+            const uploadUrl = process.env.NEXT_PUBLIC_IMAGE_UPLOAD_URL || '/api/upload';
+            const uploadResponse = await axios.post(uploadUrl, uploadFormData);
             const imageUrl = uploadResponse.data.url;
 
             // Determinar o establishmentId baseado no tipo de usuário
@@ -240,7 +244,7 @@ export function ListEvents({ events, onEventsUpdate }: Props) {
             }
             
         } catch (error) {
-            console.error(error);
+            // console.error(error);
             setError("Ocorreu um erro")
         } finally {
             setLoading(false)
@@ -334,7 +338,7 @@ export function ListEvents({ events, onEventsUpdate }: Props) {
         // Atualizar a lista de tickets
         await refreshTickets();
       } catch (error: any) {
-        console.error('Erro ao deletar ticket:', error);
+        // console.error('Erro ao deletar ticket:', error);
         setError('Erro ao deletar ticket');
       }
     };
@@ -378,7 +382,7 @@ export function ListEvents({ events, onEventsUpdate }: Props) {
             
             setAvailableReceptionists(response.data.ticketTakers || []);
         } catch (error: any) {
-            console.error('Erro ao carregar recepcionistas:', error);
+            // console.error('Erro ao carregar recepcionistas:', error);
             setAvailableReceptionists([]);
         } finally {
             setLoadingReceptionists(false);
@@ -448,9 +452,58 @@ export function ListEvents({ events, onEventsUpdate }: Props) {
                 onEventsUpdate();
             }
         } catch (error: any) {
-            console.error('Erro ao desvincular recepcionista:', error);
+            // console.error('Erro ao desvincular recepcionista:', error);
             setError('Erro ao desvincular recepcionista do evento');
         }
+    };
+
+    // Função para comprimir imagem
+    const compressImage = (file: File): Promise<File> => {
+      return new Promise((resolve) => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+
+        img.onload = () => {
+          // Calcular novas dimensões mantendo proporção
+          const maxWidth = 960; // Aumentado para 960px
+          const maxHeight = 720; // Aumentado para 720px
+          let { width, height } = img;
+
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
+          }
+
+          if (height > maxHeight) {
+            width = (width * maxHeight) / height;
+            height = maxHeight;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          ctx?.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                const compressedFile = new File([blob], file.name, {
+                  type: file.type,
+                  lastModified: Date.now(),
+                });
+                resolve(compressedFile);
+              } else {
+                resolve(file);
+              }
+            },
+            file.type,
+            0.75 // Qualidade melhorada para 75%
+          );
+        };
+
+        img.src = URL.createObjectURL(file);
+      });
     };
 
     return (
@@ -482,6 +535,7 @@ export function ListEvents({ events, onEventsUpdate }: Props) {
                 <CardBody className="pt-2">
                     <Table aria-label="Tabela de eventos" removeWrapper className="table-auto text-sm">
                         <TableHeader className="bg-transparent">
+                            <TableColumn>FOTO</TableColumn>
                             <TableColumn>EVENTO</TableColumn>
                             <TableColumn className="min-w-[200px]">LOCAL</TableColumn>
                             <TableColumn>DATA</TableColumn>
@@ -489,6 +543,7 @@ export function ListEvents({ events, onEventsUpdate }: Props) {
                             <TableColumn>CRIADO POR</TableColumn>
                             <TableColumn>INGRESSOS</TableColumn>
                             <TableColumn>RECEPCIONISTAS</TableColumn>
+                            <TableColumn>DETALHES</TableColumn>
                         </TableHeader>
                         <TableBody
                             emptyContent={!events.length ? "Nenhum evento encontrado" : "Carregando..."}
@@ -496,27 +551,32 @@ export function ListEvents({ events, onEventsUpdate }: Props) {
                         >
                             {(event) => (
                                 <TableRow key={event.id} className="hover:bg-content2 transition border-b border-default-100">
-                                    {/* 1. EVENTO */}
+                                    {/* 1. FOTO */}
                                     <TableCell>
-                                        <div className="flex items-center gap-2">
-                                            {event.photos && event.photos.length > 0 && (
-                                                <Image
-                                                    src={event.photos[0]}
-                                                    alt={event.name || "Sem nome"}
-                                                    className="w-10 h-10 rounded object-cover border border-default-200"
-                                                />
-                                            )}
-                                            <div>
-                                                <p className="font-bold text-theme-primary leading-tight text-lg">{event.name || "Sem nome"}</p>
-                                                <p className="text-xs text-theme-secondary line-clamp-1">{event.description || ""}</p>
+                                        {event.photos && event.photos.length > 0 ? (
+                                            <Image
+                                                src={event.photos[0]}
+                                                alt={event.name || "Sem nome"}
+                                                className="w-12 h-12 rounded-lg object-cover border border-default-200 shadow-sm"
+                                            />
+                                        ) : (
+                                            <div className="w-12 h-12 rounded-lg bg-default-100 border border-default-200 flex items-center justify-center">
+                                                <PhotoIcon className="w-6 h-6 text-default-400" />
                                             </div>
+                                        )}
+                                    </TableCell>
+                                    {/* 2. EVENTO */}
+                                    <TableCell>
+                                        <div>
+                                            <p className="font-bold text-theme-primary leading-tight text-lg">{event.name || "Sem nome"}</p>
+                                            <p className="text-xs text-theme-secondary line-clamp-1">{event.description || ""}</p>
                                         </div>
                                     </TableCell>
-                                    {/* 2. LOCAL */}
+                                    {/* 3. LOCAL */}
                                     <TableCell className="min-w-[200px]">
                                         <p className="font-medium text-theme-primary leading-tight">{event.establishment?.name ? String(event.establishment.name) : '-'}</p>
                                     </TableCell>
-                                    {/* 3. DATA */}
+                                    {/* 4. DATA */}
                                     <TableCell>
                                         <div className="flex flex-col gap-1">
                                             <div className="flex items-center gap-1">
@@ -537,13 +597,13 @@ export function ListEvents({ events, onEventsUpdate }: Props) {
                                             </div>
                                         </div>
                                     </TableCell>
-                                    {/* 4. STATUS */}
+                                    {/* 5. STATUS */}
                                     <TableCell>
                                         <Chip color={getStatusColor(event.approvalStatus) as any} variant="flat" size="sm" className="text-xs px-2">
                                             {getStatusText(event.approvalStatus)}
                                         </Chip>
                                     </TableCell>
-                                    {/* 5. CRIADO POR */}
+                                    {/* 6. CRIADO POR */}
                                     <TableCell>
                                         <div className="flex items-center gap-1">
                                             <UsersIcon className="w-4 h-4 text-default-400" />
@@ -555,7 +615,7 @@ export function ListEvents({ events, onEventsUpdate }: Props) {
                                             </span>
                                         </div>
                                     </TableCell>
-                                    {/* 6. INGRESSOS */}
+                                    {/* 7. INGRESSOS */}
                                     <TableCell>
                                         <Button
                                             variant="light"
@@ -572,7 +632,7 @@ export function ListEvents({ events, onEventsUpdate }: Props) {
                                             </span>
                                         </Button>
                                     </TableCell>
-                                    {/* 7. RECEPCIONISTAS */}
+                                    {/* 8. RECEPCIONISTAS */}
                                     <TableCell>
                                         <div className="flex items-center gap-2">
                                             {event.managers && event.managers.length > 0 ? (
@@ -617,6 +677,19 @@ export function ListEvents({ events, onEventsUpdate }: Props) {
                                             </Button>
                                         </div>
                                     </TableCell>
+                                    {/* 9. DETALHES */}
+                                    <TableCell>
+                                        <Button
+                                            isIconOnly
+                                            size="sm"
+                                            variant="light"
+                                            className="text-default-500"
+                                            onPress={() => handleViewEvent(event)}
+                                            title="Ver detalhes do evento"
+                                        >
+                                            <EyeIcon className="w-5 h-5" />
+                                        </Button>
+                                    </TableCell>
                                 </TableRow>
                             )}
                         </TableBody>
@@ -635,90 +708,108 @@ export function ListEvents({ events, onEventsUpdate }: Props) {
                     )}
                 </CardBody>
             </Card>
-            <Modal hideCloseButton isDismissable={false} size="4xl" isOpen={isOpen} onOpenChange={onOpenChange}>
+            <Modal hideCloseButton isDismissable={!loading} size="4xl" isOpen={isOpen} onOpenChange={onOpenChange}>
                 <ModalContent>
                     {(onClose) => (
                         <>
-                            <ModalHeader className="flex flex-col gap-1">Novo Evento</ModalHeader>
+                            <ModalHeader className="flex flex-col gap-1">
+                                {loading ? (
+                                    <div className="flex items-center gap-2">
+                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#FF6600]"></div>
+                                        Criando evento...
+                                    </div>
+                                ) : (
+                                    "Novo Evento"
+                                )}
+                            </ModalHeader>
                             <ModalBody>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="flex flex-col gap-4">
-                                        <Input
-                                            label="Nome do Evento"
-                                            name="name"
-                                            placeholder="Digite o nome do evento"
-                                            maxLength={99}
-                                            value={eventForm.name}
-                                            onChange={handleOnChange}
-                                            isRequired
-                                        />
-                                        <label className="text-sm font-medium text-theme-tertiary">Descrição</label>
-                                        <textarea
-                                            name="description"
-                                            placeholder="Descreva o evento"
-                                            maxLength={255}
-                                            value={eventForm.description}
-                                            onChange={handleOnChange}
-                                            rows={5}
-                                            className="rounded-md border border-default-200 px-3 py-2 text-theme-primary bg-white shadow-sm focus:ring-2 focus:ring-accent-primary resize-y min-h-[100px]"
-                                            required
-                                        />
-                                        <Input
-                                            type="datetime-local"
-                                            label="Data e Hora"
-                                            name="dateTimestamp"
-                                            value={eventForm.dateTimestamp || ""}
-                                            onChange={handleOnChange}
-                                            isRequired
-                                        />
+                                {loading && (
+                                    <div className="flex flex-col items-center justify-center py-8">
+                                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FF6600] mb-4"></div>
+                                        <p className="text-lg font-medium text-gray-600">Criando seu evento...</p>
+                                        <p className="text-sm text-gray-500 mt-2">Isso pode levar alguns segundos</p>
                                     </div>
-                                    <div className="flex flex-col gap-4">
-                                        {/* Upload de imagem */}
-                                        <label className="block text-sm font-medium text-theme-tertiary">Imagem do Evento</label>
-                                        <div className="flex items-center gap-4">
-                                            <Avatar
-                                                src={previewImage}
-                                                icon={<PhotoIcon className="w-10 h-10" />}
-                                                className="w-24 h-24 text-large border border-default-200" />
-                                            <label
-                                                htmlFor="file-upload-event"
-                                                className="cursor-pointer rounded-md bg-[#FF6600] px-4 py-2 text-white font-semibold hover:bg-orange-600 transition"
-                                            >
-                                                {selectedPhoto ? "Alterar" : "Selecionar"}
-                                                <input
-                                                    accept="image/*"
-                                                    id="file-upload-event"
-                                                    name="file-upload-event"
-                                                    onChange={e => setSelectedPhoto(e.target.files![0])}
-                                                    type="file"
-                                                    className="sr-only" />
-                                            </label>
-                                        </div>
-                                        {/* Para PROMOTER, mostrar seletor de estabelecimento */}
-                                        {isPromoter && (
-                                            <Select
-                                                label="Buscar Estabelecimento"
-                                                placeholder="Digite o nome do estabelecimento"
-                                                selectedKeys={selectedEstablishment ? [selectedEstablishment] : []}
-                                                onSelectionChange={(keys) => {
-                                                    const selected = Array.from(keys)[0] as string;
-                                                    setSelectedEstablishment(selected);
-                                                }}
-                                                isLoading={loadingEstablishments}
+                                )}
+                                {!loading && (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div className="flex flex-col gap-4">
+                                            <Input
+                                                label="Nome do Evento"
+                                                name="name"
+                                                placeholder="Digite o nome do evento"
+                                                maxLength={99}
+                                                value={eventForm.name}
+                                                onChange={handleOnChange}
                                                 isRequired
-                                            >
-                                                {establishments.map((establishment) => (
-                                                    <SelectItem key={establishment.id} value={establishment.id}>
-                                                        <div className="flex flex-col">
-                                                            <span className="font-medium">{establishment.name}</span>
-                                                            <span className="text-xs text-gray-500">{establishment.address}</span>
-                                                        </div>
-                                                    </SelectItem>
-                                                ))}
-                                            </Select>
-                                        )}
+                                            />
+                                            <label className="text-sm font-medium text-theme-tertiary">Descrição</label>
+                                            <textarea
+                                                name="description"
+                                                placeholder="Descreva o evento"
+                                                maxLength={255}
+                                                value={eventForm.description}
+                                                onChange={handleOnChange}
+                                                rows={5}
+                                                className="rounded-md border border-default-200 px-3 py-2 text-theme-primary bg-white shadow-sm focus:ring-2 focus:ring-accent-primary resize-y min-h-[100px]"
+                                                required
+                                            />
+                                            <Input
+                                                type="datetime-local"
+                                                label="Data e Hora"
+                                                name="dateTimestamp"
+                                                value={eventForm.dateTimestamp || ""}
+                                                onChange={handleOnChange}
+                                                isRequired
+                                            />
+                                        </div>
+                                        <div className="flex flex-col gap-4">
+                                            {/* Upload de imagem */}
+                                            <label className="block text-sm font-medium text-theme-tertiary">Imagem do Evento</label>
+                                            <div className="flex items-center gap-4">
+                                                <Avatar
+                                                    src={previewImage}
+                                                    icon={<PhotoIcon className="w-10 h-10" />}
+                                                    className="w-24 h-24 text-large border border-default-200" />
+                                                <label
+                                                    htmlFor="file-upload-event"
+                                                    className="cursor-pointer rounded-md bg-[#FF6600] px-4 py-2 text-white font-semibold hover:bg-orange-600 transition"
+                                                >
+                                                    {selectedPhoto ? "Alterar" : "Selecionar"}
+                                                    <input
+                                                        accept="image/*"
+                                                        id="file-upload-event"
+                                                        name="file-upload-event"
+                                                        onChange={e => setSelectedPhoto(e.target.files![0])}
+                                                        type="file"
+                                                        className="sr-only" />
+                                                </label>
+                                            </div>
+                                            {/* Para PROMOTER, mostrar seletor de estabelecimento */}
+                                            {isPromoter && (
+                                                <Select
+                                                    label="Buscar Estabelecimento"
+                                                    placeholder="Digite o nome do estabelecimento"
+                                                    selectedKeys={selectedEstablishment ? [selectedEstablishment] : []}
+                                                    onSelectionChange={(keys) => {
+                                                        const selected = Array.from(keys)[0] as string;
+                                                        setSelectedEstablishment(selected);
+                                                    }}
+                                                    isLoading={loadingEstablishments}
+                                                    isRequired
+                                                >
+                                                    {establishments.map((establishment) => (
+                                                        <SelectItem key={establishment.id} value={establishment.id}>
+                                                            <div className="flex flex-col">
+                                                                <span className="font-medium">{establishment.name}</span>
+                                                                <span className="text-xs text-gray-500">{establishment.address}</span>
+                                                            </div>
+                                                        </SelectItem>
+                                                    ))}
+                                                </Select>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
+                                )}
                             </ModalBody>
                             <ModalFooter>
                                 <Button
@@ -806,7 +897,17 @@ export function ListEvents({ events, onEventsUpdate }: Props) {
                             <ModalHeader>Detalhes do Evento</ModalHeader>
                             <ModalBody>
                                 {selectedEvent && (
-                                    <div className="space-y-6">
+                                    <div className="space-y-6 max-h-[90vh] overflow-y-auto mt-4 mb-4">
+                                        {/* Foto principal no topo */}
+                                        {selectedEvent.photos && selectedEvent.photos.length > 0 && (
+                                            <div className="w-full flex justify-center">
+                                                <Image
+                                                    src={selectedEvent.photos[0]}
+                                                    alt={selectedEvent.name}
+                                                    className="w-full max-w-2xl h-64 object-cover rounded-xl mb-6 shadow-lg"
+                                                />
+                                            </div>
+                                        )}
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             <div>
                                                 <label className="text-sm font-medium text-theme-tertiary">Nome do Evento</label>
@@ -822,7 +923,7 @@ export function ListEvents({ events, onEventsUpdate }: Props) {
 
                                         <div>
                                             <label className="text-sm font-medium text-theme-tertiary">Descrição</label>
-                                            <p className="text-lg text-theme-primary">{selectedEvent.description}</p>
+                                            <p className="text-lg text-theme-primary whitespace-pre-line">{selectedEvent.description}</p>
                                         </div>
 
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -884,15 +985,6 @@ export function ListEvents({ events, onEventsUpdate }: Props) {
                             <ModalFooter>
                                 <Button color="danger" variant="light" onPress={onClose}>
                                     Fechar
-                                </Button>
-                                <Button 
-                                    className="bg-[#FF6600] text-white font-bold"
-                                    onPress={() => {
-                                        onClose();
-                                        router.push(`/dashboard/eventos/${selectedEvent?.id}`);
-                                    }}
-                                >
-                                    Gerenciar Evento
                                 </Button>
                             </ModalFooter>
                         </>

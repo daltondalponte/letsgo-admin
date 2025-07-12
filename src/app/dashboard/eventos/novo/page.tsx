@@ -5,6 +5,7 @@ import { useRouter } from "next-nprogress-bar";
 import axios from "axios";
 import { useAuth } from "@/context/authContext";
 import EstablishmentSearch from '@/components/EstablishmentSearch';
+import { ImageUpload } from '@/components/ImageUpload';
 import moment from 'moment-timezone';
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
@@ -41,6 +42,9 @@ export default function NovoEventoPage() {
   const [establishments, setEstablishments] = useState<any[]>([]);
   const [loadingEstablishments, setLoadingEstablishments] = useState(false);
   const [selectedEstablishment, setSelectedEstablishment] = useState<any>(null);
+
+  // Estado para imagens
+  const [eventImageFiles, setEventImageFiles] = useState<File[]>([]);
 
   const isPromoter = user?.type === "PROFESSIONAL_PROMOTER";
   const isOwner = user?.type === "PROFESSIONAL_OWNER";
@@ -114,6 +118,10 @@ export default function NovoEventoPage() {
     });
   };
 
+  const handleImagesChanged = (imageFiles: File[]) => {
+    setEventImageFiles(imageFiles);
+  };
+
   const handleSubmit = async (e: any) => {
     e.preventDefault();
     
@@ -127,8 +135,16 @@ export default function NovoEventoPage() {
     const eventDate = form.dateTimestamp;
     const now = new Date();
     
-    if (!eventDate || eventDate <= now) {
-      setError("Não é possível criar eventos em datas passadas ou na data atual. A data do evento deve ser futura.");
+    if (!eventDate) {
+      setError("Selecione uma data e hora para o evento.");
+      return;
+    }
+    
+    // Adicionar margem de 1 hora para evitar eventos muito próximos
+    const minimumDate = new Date(now.getTime() + 60 * 60 * 1000); // 1 hora a partir de agora
+    
+    if (eventDate <= minimumDate) {
+      setError("O evento deve ser criado com pelo menos 1 hora de antecedência.");
       return;
     }
 
@@ -153,7 +169,34 @@ export default function NovoEventoPage() {
 
     setError(null);
     setSuccess(null);
+    
     try {
+      // Fazer upload das imagens primeiro
+      const uploadedImageUrls: string[] = [];
+      
+      if (eventImageFiles.length > 0) {
+        setSuccess("Fazendo upload das imagens...");
+        
+        for (const file of eventImageFiles) {
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('folder', 'events');
+          
+          const uploadUrl = process.env.NEXT_PUBLIC_IMAGE_UPLOAD_URL || '/api/upload';
+          const uploadResponse = await fetch(uploadUrl, {
+            method: 'POST',
+            body: formData,
+          });
+          
+          if (uploadResponse.ok) {
+            const result = await uploadResponse.json();
+            uploadedImageUrls.push(result.url);
+          } else {
+            throw new Error(`Erro ao fazer upload da imagem: ${uploadResponse.status}`);
+          }
+        }
+      }
+
       // O DatePicker retorna a data no fuso horário local do usuário
       // Vamos enviar a data como string ISO sem conversão de fuso horário
       const dateTimestampUTC = form.dateTimestamp?.toISOString() || '';
@@ -168,6 +211,7 @@ export default function NovoEventoPage() {
         dateTimestamp: dateTimestampUTC,
         endTimestamp: endTimestampUTC,
         tickets,
+        photos: uploadedImageUrls, // URLs das imagens enviadas
         establishmentId: isOwner ? user?.establishment?.id ?? '' : form.establishmentId,
         address: isOwner ? null : selectedEstablishment?.address,
         coordinates_event: isOwner ? null : form.coordinates_event
@@ -194,6 +238,7 @@ export default function NovoEventoPage() {
         });
         setTickets([]);
         setSelectedEstablishment(null);
+        setEventImageFiles([]); // Limpar arquivos de imagem
         
         // Redirecionar após 2 segundos
         setTimeout(() => {
@@ -208,6 +253,7 @@ export default function NovoEventoPage() {
       setError(
         err?.response?.data?.message ||
         err?.response?.data?.error ||
+        err?.message ||
         "Erro ao criar evento."
       );
     }
@@ -235,18 +281,30 @@ export default function NovoEventoPage() {
           className="w-full px-4 py-3 rounded-md border border-default-200 text-theme-primary bg-white shadow-sm focus:ring-2 focus:ring-accent-primary resize-y min-h-[100px]"
           required
         />
-        <DatePicker
-          selected={form.dateTimestamp}
-          onChange={date => setForm(prev => ({ ...prev, dateTimestamp: date }))}
-          showTimeSelect
-          timeFormat="HH:mm"
-          timeIntervals={15}
-          dateFormat="dd/MM/yyyy HH:mm"
-          placeholderText="Selecione a data e hora"
-          className="w-full px-4 py-3 rounded-md border border-default-200 text-theme-primary bg-white shadow-sm focus:ring-2 focus:ring-accent-primary"
-          timeZone="America/Sao_Paulo"
-          locale="pt-BR"
-        />
+        <div>
+          <DatePicker
+            selected={form.dateTimestamp}
+            onChange={date => setForm(prev => ({ ...prev, dateTimestamp: date }))}
+            showTimeSelect
+            timeFormat="HH:mm"
+            timeIntervals={15}
+            dateFormat="dd/MM/yyyy HH:mm"
+            placeholderText="Selecione a data e hora"
+            className="w-full px-4 py-3 rounded-md border border-default-200 text-theme-primary bg-white shadow-sm focus:ring-2 focus:ring-accent-primary"
+            timeZone="America/Sao_Paulo"
+            locale="pt-BR"
+            minDate={new Date(Date.now() + 60 * 60 * 1000)} // Mínimo 1 hora a partir de agora
+            filterTime={(time) => {
+              const now = new Date();
+              const selectedDate = new Date(time);
+              const minimumTime = new Date(now.getTime() + 60 * 60 * 1000); // 1 hora a partir de agora
+              return selectedDate > minimumTime;
+            }}
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            ⏰ O evento deve ser criado com pelo menos 1 hora de antecedência
+          </p>
+        </div>
         {/* Substituir campo de data de término por duração */}
         <Input
           type="number"
@@ -258,6 +316,17 @@ export default function NovoEventoPage() {
           placeholder="Ex: 5"
           isRequired
         />
+
+        <div>
+          <label className="text-sm font-medium text-theme-tertiary mb-2 block">
+            Imagens do Evento
+          </label>
+          <ImageUpload
+            onImagesChanged={handleImagesChanged}
+            folder="events"
+            maxImages={5}
+          />
+        </div>
         {/* Campo de estabelecimento apenas para promoters */}
         {isPromoter && (
           <div>

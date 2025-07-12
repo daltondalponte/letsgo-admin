@@ -235,99 +235,113 @@ export default function AprovacoesPage() {
         </div>
       ) : (
         <>
-          <Table aria-label="Tabela de eventos pendentes">
-            <TableHeader>
-              <TableColumn>EVENTO</TableColumn>
-              <TableColumn>PROMOTER</TableColumn>
-              <TableColumn>DATA/HORA</TableColumn>
-              <TableColumn>ENDEREÇO</TableColumn>
-              <TableColumn>STATUS</TableColumn>
-              <TableColumn>AÇÕES</TableColumn>
-            </TableHeader>
-            <TableBody>
-              {items.map((event) => (
-                <TableRow key={event.id}>
-                  <TableCell>
-                    <div className="flex flex-col">
-                      <p className="text-bold">{event.name}</p>
-                      <p className="text-tiny text-gray-500">{event.description}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col">
-                      <p className="text-bold text-small">{event.promoter?.name || 'N/A'}</p>
-                      <p className="text-tiny text-gray-500">{event.promoter?.email || 'N/A'}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col">
-                      <p className="text-bold text-small">
-                        {moment(event.dateTimestamp).format('DD/MM/YYYY')}
-                      </p>
-                      <div className="text-tiny text-gray-500">
-                        <p><strong>Início:</strong> {moment(event.dateTimestamp).format('HH:mm')}</p>
-                        {event.endTimestamp && (
-                          <p><strong>Término:</strong> {moment(event.endTimestamp).format('HH:mm')}</p>
-                        )}
+          {/* Tabela responsiva */}
+          <div className="w-full overflow-x-auto">
+            <Table aria-label="Tabela de eventos pendentes" className="min-w-[800px]">
+              <TableHeader>
+                <TableColumn>EVENTO</TableColumn>
+                <TableColumn>PROMOTER</TableColumn>
+                <TableColumn>DATA/HORA</TableColumn>
+                <TableColumn>ENDEREÇO</TableColumn>
+                <TableColumn>STATUS</TableColumn>
+                <TableColumn>AÇÕES</TableColumn>
+              </TableHeader>
+              <TableBody>
+                {items.map((event) => (
+                  <TableRow key={event.id}>
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <p className="text-bold">{event.name}</p>
+                        <p
+                          className="text-tiny text-gray-500 truncate max-w-[120px] cursor-pointer"
+                          title={event.description}
+                          style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                        >
+                          {event.description}
+                        </p>
                       </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col">
-                      <p className="text-bold text-small">{event.address || 'N/A'}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      className="capitalize"
-                      color={getStatusColor(event.status) as any}
-                      size="sm"
-                      variant="flat"
-                    >
-                      {getStatusText(event.status)}
-                    </Chip>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      <Button
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <p className="text-bold text-small">{event.promoter?.name || 'N/A'}</p>
+                        <p className="text-tiny text-gray-500">{event.promoter?.email || 'N/A'}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <p className="text-bold text-small">
+                          {moment(event.dateTimestamp).format('DD/MM/YYYY')}
+                        </p>
+                        <div className="text-tiny text-gray-500">
+                          <p><strong>Início:</strong> {moment(event.dateTimestamp).format('HH:mm')}</p>
+                          {event.endTimestamp && (
+                            <p><strong>Término:</strong> {moment(event.endTimestamp).format('HH:mm')}</p>
+                          )}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <p
+                          className="text-bold text-small truncate max-w-[120px] cursor-pointer"
+                          title={event.address}
+                          style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                        >
+                          {event.address || 'N/A'}
+                        </p>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        className="capitalize"
+                        color={getStatusColor(event.status) as any}
                         size="sm"
                         variant="flat"
-                        onPress={() => handleViewEvent(event)}
                       >
-                        <EyeIcon size={16} />
-                        Ver
-                      </Button>
-                      
-                      {event.status === "PENDING" && (
-                        <>
-                          <Button
-                            size="sm"
-                            color="success"
-                            variant="flat"
-                            onPress={() => openApproveConfirm(event.id)}
-                            isLoading={processingAction === event.id}
-                          >
-                            <CheckIcon size={16} />
-                            Aprovar
-                          </Button>
-                          <Button
-                            size="sm"
-                            color="danger"
-                            variant="flat"
-                            onPress={() => openRejectConfirm(event.id)}
-                            isLoading={processingAction === event.id}
-                          >
-                            <XIcon size={16} />
-                            Rejeitar
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                        {getStatusText(event.status)}
+                      </Chip>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="flat"
+                          onPress={() => handleViewEvent(event)}
+                        >
+                          <EyeIcon size={16} />
+                          Ver detalhes
+                        </Button>
+                        {event.status === "PENDING" && (
+                          <>
+                            <Button
+                              size="sm"
+                              color="success"
+                              variant="flat"
+                              onPress={() => openApproveConfirm(event.id)}
+                              isLoading={processingAction === event.id}
+                            >
+                              <CheckIcon size={16} />
+                              Aprovar
+                            </Button>
+                            <Button
+                              size="sm"
+                              color="danger"
+                              variant="flat"
+                              onPress={() => openRejectConfirm(event.id)}
+                              isLoading={processingAction === event.id}
+                            >
+                              <XIcon size={16} />
+                              Rejeitar
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
 
           <div className="flex justify-center mt-4">
             <Pagination
@@ -343,40 +357,42 @@ export default function AprovacoesPage() {
 
       {/* Modal de Detalhes do Evento */}
       <Modal open={isOpen} setOpen={onOpenChange}>
-        <div className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Detalhes do Evento</h3>
+        <div className="p-4 sm:p-6 w-full max-w-xs sm:max-w-md mx-auto">
+          <h3 className="text-lg font-semibold mb-4 text-center">Detalhes do Evento</h3>
           {selectedEvent && (
-            <div className="space-y-4">
+            <div className="flex flex-col gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Nome do Evento</label>
-                <p className="mt-1 text-sm text-gray-900">{selectedEvent.name}</p>
+                <span className="block text-xs font-medium text-gray-400">Nome do Evento</span>
+                <span className="block text-base font-semibold text-gray-900 break-words">{selectedEvent.name}</span>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Descrição</label>
-                <p className="mt-1 text-sm text-gray-900">{selectedEvent.description}</p>
+                <span className="block text-xs font-medium text-gray-400">Descrição</span>
+                <span className="block text-sm text-gray-800 break-words">{selectedEvent.description}</span>
+              </div>
+              <div className="flex gap-4">
+                <div>
+                  <span className="block text-xs font-medium text-gray-400">Data</span>
+                  <span className="block text-sm text-gray-800">{moment(selectedEvent.dateTimestamp).format('DD/MM/YYYY')}</span>
+                </div>
+                <div>
+                  <span className="block text-xs font-medium text-gray-400">Hora</span>
+                  <span className="block text-sm text-gray-800">{moment(selectedEvent.dateTimestamp).format('HH:mm')}</span>
+                </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Data</label>
-                <p className="mt-1 text-sm text-gray-900">{moment(selectedEvent.dateTimestamp).format('DD/MM/YYYY')}</p>
+                <span className="block text-xs font-medium text-gray-400">Endereço</span>
+                <span className="block text-sm text-gray-800 break-words">{selectedEvent.address || 'N/A'}</span>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Hora</label>
-                <p className="text-sm text-gray-900">{moment(selectedEvent.dateTimestamp).format('HH:mm')}</p>
+                <span className="block text-xs font-medium text-gray-400">Estabelecimento</span>
+                <span className="block text-sm text-gray-800">{selectedEvent.establishment?.name || 'N/A'}</span>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Endereço</label>
-                <p className="mt-1 text-sm text-gray-900">{selectedEvent.address || 'N/A'}</p>
+                <span className="block text-xs font-medium text-gray-400">Promoter</span>
+                <span className="block text-sm text-gray-800">{selectedEvent.promoter?.name || 'N/A'} ({selectedEvent.promoter?.email || 'N/A'})</span>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Estabelecimento</label>
-                <p className="mt-1 text-sm text-gray-900">{selectedEvent.establishment?.name || 'N/A'}</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Promoter</label>
-                <p className="mt-1 text-sm text-gray-900">{selectedEvent.promoter?.name || 'N/A'} ({selectedEvent.promoter?.email || 'N/A'})</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Status</label>
+                <span className="block text-xs font-medium text-gray-400">Status</span>
                 <Chip
                   className="capitalize mt-1"
                   color={getStatusColor(selectedEvent.status) as any}
@@ -387,8 +403,8 @@ export default function AprovacoesPage() {
                 </Chip>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Data de Solicitação</label>
-                <p className="mt-1 text-sm text-gray-900">{new Date(selectedEvent.createdAt).toLocaleString('pt-BR')}</p>
+                <span className="block text-xs font-medium text-gray-400">Data de Solicitação</span>
+                <span className="block text-sm text-gray-800">{new Date(selectedEvent.createdAt).toLocaleString('pt-BR')}</span>
               </div>
             </div>
           )}
@@ -397,6 +413,7 @@ export default function AprovacoesPage() {
               color="primary"
               variant="flat"
               onPress={onOpenChange}
+              className="w-full"
             >
               Fechar
             </Button>

@@ -10,17 +10,12 @@ export async function GET(request: NextRequest) {
 
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3008';
         const url = `${apiUrl}/event/find-many-by-user-approved`;
-        
-        console.log('Fazendo requisição para:', url);
-        console.log('Token:', token.substring(0, 20) + '...');
 
         const response = await fetch(url, {
             headers: {
                 'authorization': `Bearer ${token}`
             }
         });
-
-        console.log('Status da resposta:', response.status);
 
         if (!response.ok) {
             const errorText = await response.text();
@@ -29,7 +24,6 @@ export async function GET(request: NextRequest) {
         }
 
         const data = await response.json();
-        console.log('Dados recebidos:', data);
         return NextResponse.json(data);
     } catch (error) {
         console.error('Erro ao buscar eventos aprovados por usuário:', error);

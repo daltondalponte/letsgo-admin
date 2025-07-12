@@ -78,7 +78,9 @@ export default function SignupPage() {
             name: form.establishmentName,
             cnpj: form.cnpj,
             address: address,
-            coordinates: coordinates,
+            coordinates: coordinates
+              ? { latitude: coordinates.lat, longitude: coordinates.lng }
+              : undefined,
             description: "",
             contactPhone: "",
             website: "",
