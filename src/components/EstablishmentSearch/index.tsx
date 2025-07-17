@@ -59,7 +59,7 @@ export default function EstablishmentSearch({
     setLoading(true);
     try {
       const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL}/establishment/search-for-promoters?query=${encodeURIComponent(searchTerm)}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/establishments/search-for-promoters?query=${encodeURIComponent(searchTerm)}`,
         {
           headers: {
             'authorization': `Bearer ${token}`

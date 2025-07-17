@@ -1,6 +1,6 @@
 "use client"
 import { useState, useEffect } from "react";
-import { Card, CardBody, CardHeader, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Button, Input, Chip, Pagination, useDisclosure, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Image } from "@nextui-org/react";
+import { Card, CardBody, CardHeader, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Button, Input, Chip, Pagination, useDisclosure, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Image, Spinner } from "@nextui-org/react";
 import { SearchIcon, EyeIcon, MapPinIcon } from "lucide-react";
 import { useAuth } from "@/context/authContext";
 import axios from "axios";
@@ -41,17 +41,16 @@ export default function EstabelecimentosPage() {
   const fetchEstablishments = async () => {
     try {
       setLoading(true);
-      // Buscar da API real
       
-      // Buscar estabelecimentos
-      const establishmentsResponse = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/establishment/`, {
+      // Buscar estabelecimentos via rota Next.js
+      const establishmentsResponse = await axios.get(`/api/establishment`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
       });
       
-      // Buscar todos os usuários para mapear os proprietários
-      const usersResponse = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/admin/users/all`, {
+      // Buscar todos os usuários via rota Next.js
+      const usersResponse = await axios.get(`/api/admin/users/all`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -59,12 +58,14 @@ export default function EstabelecimentosPage() {
       
       // Criar mapa de usuários por UID
       const usersMap = new Map();
-      usersResponse.data.users.forEach((user: any) => {
-        usersMap.set(user.uid, user);
-      });
+      if (usersResponse.data.users) {
+        usersResponse.data.users.forEach((user: any) => {
+          usersMap.set(user.uid, user);
+        });
+      }
       
       // Mapear estabelecimentos com dados completos do proprietário
-      const establishmentsWithOwner = establishmentsResponse.data.establishments.map((establishment: any) => {
+      const establishmentsWithOwner = (establishmentsResponse.data.establishments || []).map((establishment: any) => {
         const owner = usersMap.get(establishment.userOwnerUid);
         return {
           ...establishment,
@@ -79,8 +80,8 @@ export default function EstabelecimentosPage() {
       
       setEstablishments(establishmentsWithOwner);
     } catch (error) {
+      console.error("❌ Erro ao buscar estabelecimentos:", error);
       setEstablishments([]);
-      // Exibir mensagem de erro se necessário
     } finally {
       setLoading(false);
     }
@@ -99,24 +100,32 @@ export default function EstabelecimentosPage() {
     onOpen();
   };
 
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Spinner size="lg" color="warning" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Gestão de Estabelecimentos</h1>
       </div>
 
-      <Card className="card-theme">
+      <Card>
         <CardHeader>
           <Input
             placeholder="Buscar estabelecimentos..."
-            startContent={<SearchIcon size={20} />}
+            startContent={<SearchIcon className="w-4 h-4" />}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="max-w-sm input-theme"
+            className="max-w-sm"
           />
         </CardHeader>
-        <CardBody className="table-container">
-          <Table aria-label="Tabela de estabelecimentos" className="table-theme">
+        <CardBody>
+          <Table aria-label="Tabela de estabelecimentos">
             <TableHeader>
               <TableColumn>NOME</TableColumn>
               <TableColumn>ENDEREÇO</TableColumn>
@@ -126,17 +135,14 @@ export default function EstabelecimentosPage() {
               <TableColumn>CRIADO EM</TableColumn>
               <TableColumn>AÇÕES</TableColumn>
             </TableHeader>
-            <TableBody
-              emptyContent={loading ? "Carregando..." : "Nenhum estabelecimento encontrado"}
-              items={items}
-            >
-              {(establishment) => (
+            <TableBody emptyContent="Nenhum estabelecimento encontrado">
+              {items.map((establishment) => (
                 <TableRow key={establishment.id}>
-                  <TableCell className="font-medium text-theme-primary">{establishment.name}</TableCell>
+                  <TableCell className="font-medium">{establishment.name}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <MapPinIcon size={16} />
-                      <span className="text-sm text-theme-primary">{establishment.address}</span>
+                      <MapPinIcon className="w-4 h-4" />
+                      <span className="text-sm">{establishment.address}</span>
                     </div>
                   </TableCell>
                   <TableCell>
@@ -152,20 +158,20 @@ export default function EstabelecimentosPage() {
                         )}
                       </div>
                     ) : (
-                      <span className="text-theme-tertiary">Sem fotos</span>
+                      <span className="text-gray-500">Sem fotos</span>
                     )}
                   </TableCell>
                   <TableCell>
                     {establishment.owner ? (
                       <div>
-                        <p className="font-medium text-theme-primary">{establishment.owner.name}</p>
-                        <p className="text-sm text-theme-secondary">{establishment.owner.email}</p>
+                        <p className="font-medium">{establishment.owner.name}</p>
+                        <p className="text-sm text-gray-500">{establishment.owner.email}</p>
                         <Chip color={establishment.owner.isActive ? "success" : "danger"} variant="flat" size="sm">
                           {establishment.owner.isActive ? "Ativo" : "Inativo"}
                         </Chip>
                       </div>
                     ) : (
-                      <span className="text-theme-tertiary">Não definido</span>
+                      <span className="text-gray-500">Não definido</span>
                     )}
                   </TableCell>
                   <TableCell>
@@ -173,7 +179,7 @@ export default function EstabelecimentosPage() {
                       {establishment.owner?.isActive ? "Ativo" : "Inativo"}
                     </Chip>
                   </TableCell>
-                  <TableCell className="text-theme-primary">
+                  <TableCell>
                     {new Date(establishment.createdAt).toLocaleDateString('pt-BR')}
                   </TableCell>
                   <TableCell>
@@ -184,12 +190,12 @@ export default function EstabelecimentosPage() {
                         variant="light"
                         onPress={() => handleViewEstablishment(establishment)}
                       >
-                        <EyeIcon size={16} />
+                        <EyeIcon className="w-4 h-4" />
                       </Button>
                     </div>
                   </TableCell>
                 </TableRow>
-              )}
+              ))}
             </TableBody>
           </Table>
 
@@ -217,45 +223,45 @@ export default function EstabelecimentosPage() {
                   <div className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
-                        <label className="text-sm font-medium text-theme-tertiary">Nome</label>
-                        <p className="text-lg font-medium text-theme-primary">{selectedEstablishment.name}</p>
+                        <label className="text-sm font-medium text-gray-500">Nome</label>
+                        <p className="text-lg font-medium">{selectedEstablishment.name}</p>
                       </div>
                     </div>
 
                     <div>
-                      <label className="text-sm font-medium text-theme-tertiary">Endereço</label>
+                      <label className="text-sm font-medium text-gray-500">Endereço</label>
                       <div className="flex items-center gap-2 mt-1">
-                        <MapPinIcon size={16} />
-                        <p className="text-lg text-theme-primary">{selectedEstablishment.address}</p>
+                        <MapPinIcon className="w-4 h-4" />
+                        <p className="text-lg">{selectedEstablishment.address}</p>
                       </div>
                     </div>
 
                     <div>
-                      <label className="text-sm font-medium text-theme-tertiary">Proprietário</label>
+                      <label className="text-sm font-medium text-gray-500">Proprietário</label>
                       {selectedEstablishment.owner ? (
                         <div className="mt-1">
-                          <p className="font-medium text-theme-primary">{selectedEstablishment.owner.name}</p>
-                          <p className="text-theme-secondary">{selectedEstablishment.owner.email}</p>
+                          <p className="font-medium">{selectedEstablishment.owner.name}</p>
+                          <p className="text-gray-500">{selectedEstablishment.owner.email}</p>
                           <Chip color={selectedEstablishment.owner.isActive ? "success" : "danger"} variant="flat" size="sm">
                             {selectedEstablishment.owner.isActive ? "Ativo" : "Inativo"}
                           </Chip>
                         </div>
                       ) : (
-                        <p className="text-theme-tertiary mt-1">Não definido</p>
+                        <p className="text-gray-500 mt-1">Não definido</p>
                       )}
                     </div>
 
                     {selectedEstablishment.photos && selectedEstablishment.photos.length > 0 && (
                       <div>
-                        <label className="text-sm font-medium text-theme-tertiary">Fotos</label>
+                        <label className="text-sm font-medium text-gray-500">Fotos</label>
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-2">
                           {selectedEstablishment.photos.map((photo, index) => (
-                            <div
-                              key={index}
-                              className="w-full h-32 bg-gray-200 rounded-lg flex items-center justify-center"
-                            >
-                              <span className="text-2xl text-gray-500">📷</span>
-                            </div>
+                            <Image
+                              key={`photo-${index}`}
+                              src={`${process.env.NEXT_PUBLIC_API_URL}/api/image-proxy?file=${encodeURIComponent(photo)}`}
+                              alt={`Foto ${index + 1}`}
+                              className="w-full h-32 object-cover rounded-lg"
+                            />
                           ))}
                         </div>
                       </div>
@@ -263,12 +269,12 @@ export default function EstabelecimentosPage() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
-                        <label className="text-sm font-medium text-theme-tertiary">Criado em</label>
-                        <p className="text-lg text-theme-primary">{new Date(selectedEstablishment.createdAt).toLocaleString('pt-BR')}</p>
+                        <label className="text-sm font-medium text-gray-500">Criado em</label>
+                        <p className="text-lg">{new Date(selectedEstablishment.createdAt).toLocaleString('pt-BR')}</p>
                       </div>
                       <div>
-                        <label className="text-sm font-medium text-theme-tertiary">Última atualização</label>
-                        <p className="text-lg text-theme-primary">{new Date(selectedEstablishment.updatedAt).toLocaleString('pt-BR')}</p>
+                        <label className="text-sm font-medium text-gray-500">Última atualização</label>
+                        <p className="text-lg">{new Date(selectedEstablishment.updatedAt).toLocaleString('pt-BR')}</p>
                       </div>
                     </div>
                   </div>

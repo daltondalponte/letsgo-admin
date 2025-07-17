@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
         const token = authHeader.substring(7);
 
         // Fazer requisição para a API backend
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3008'}/establishment/available-for-promoters`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3008'}/establishments/available-for-promoters`, {
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'

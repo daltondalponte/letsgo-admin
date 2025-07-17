@@ -1,6 +1,6 @@
 "use client"
 
-import { Card, CardHeader, CardBody, CardFooter, Divider, Link, Image, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, getKeyValue } from "@nextui-org/react";
+import { Card, CardHeader, CardBody, CardFooter, Divider, Image, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, getKeyValue } from "@nextui-org/react";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/authContext";
 

@@ -28,7 +28,7 @@ export function ModalEditEvent({ evento, onClose, callback, ...rest }: Props) {
 
             setLoading(true)
 
-            const { data } = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/event/update/${evento.id}`, form, {
+            const { data } = await axios.put(`${process.env.NEXT_PUBLIC_API_URL}/events/${evento.id}`, form, {
                 headers: {
                     'Content-Type': 'application/json',
                     'authorization': `Bearer ${token}`

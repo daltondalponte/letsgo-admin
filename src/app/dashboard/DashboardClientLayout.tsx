@@ -1,6 +1,7 @@
 'use client';
 
-import { Link, Button } from "@nextui-org/react";
+import { Button } from "@nextui-org/react";
+import Link from "next/link";
 import { HomeIcon, UsersIcon, CalendarIcon, TicketIcon, LayoutDashboardIcon, BuildingIcon, BarChartIcon, CogIcon, FileTextIcon, LogOutIcon, SunIcon, MoonIcon } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useTheme } from "../../hooks/useTheme";

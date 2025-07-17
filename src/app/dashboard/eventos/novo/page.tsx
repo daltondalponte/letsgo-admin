@@ -122,6 +122,55 @@ export default function NovoEventoPage() {
     setEventImageFiles(imageFiles);
   };
 
+  // Função para comprimir imagem
+  const compressImage = (file: File): Promise<File> => {
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d')!;
+      const img = new Image();
+      
+      img.onload = () => {
+        // Calcular novas dimensões mantendo proporção
+        const maxWidth = 800;
+        const maxHeight = 600;
+        let { width, height } = img;
+        
+        if (width > height) {
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = (width * maxHeight) / height;
+            height = maxHeight;
+          }
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        // Desenhar imagem comprimida
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Converter para blob com qualidade reduzida
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const compressedFile = new File([blob], file.name, {
+              type: 'image/jpeg',
+              lastModified: Date.now(),
+            });
+            resolve(compressedFile);
+          } else {
+            resolve(file);
+          }
+        }, 'image/jpeg', 0.7); // Qualidade 70%
+      };
+      
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
   const handleSubmit = async (e: any) => {
     e.preventDefault();
     
@@ -149,12 +198,15 @@ export default function NovoEventoPage() {
     }
 
     // Validar se endTimestamp é posterior a dateTimestamp
-    if (form.endTimestamp) {
-      const eventEndDate = form.endTimestamp;
-      if (eventEndDate <= eventDate) {
-        setError("O horário de término deve ser posterior ao horário de início.");
-        return;
-      }
+    if (form.endTimestamp && form.dateTimestamp && form.endTimestamp <= form.dateTimestamp) {
+      setError("A data de término deve ser posterior à data de início.");
+      return;
+    }
+
+    // Validar se pelo menos uma foto foi selecionada
+    if (eventImageFiles.length === 0) {
+      setError("É obrigatório fazer upload de pelo menos uma foto para o evento.");
+      return;
     }
 
     if (isPromoter && !form.establishmentId) {
@@ -171,29 +223,25 @@ export default function NovoEventoPage() {
     setSuccess(null);
     
     try {
-      // Fazer upload das imagens primeiro
-      const uploadedImageUrls: string[] = [];
+      setSuccess("Validando dados do evento...");
+
+      // Converter imagens para base64
+      const images: any[] = [];
       
       if (eventImageFiles.length > 0) {
-        setSuccess("Fazendo upload das imagens...");
-        
         for (const file of eventImageFiles) {
-          const formData = new FormData();
-          formData.append('file', file);
-          formData.append('folder', 'events');
-          
-          const uploadUrl = process.env.NEXT_PUBLIC_IMAGE_UPLOAD_URL || '/api/upload';
-          const uploadResponse = await fetch(uploadUrl, {
-            method: 'POST',
-            body: formData,
+          const compressedFile = await compressImage(file);
+          const base64 = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.readAsDataURL(compressedFile);
           });
           
-          if (uploadResponse.ok) {
-            const result = await uploadResponse.json();
-            uploadedImageUrls.push(result.url);
-          } else {
-            throw new Error(`Erro ao fazer upload da imagem: ${uploadResponse.status}`);
-          }
+          images.push({
+            name: file.name,
+            type: file.type,
+            data: base64
+          });
         }
       }
 
@@ -211,13 +259,14 @@ export default function NovoEventoPage() {
         dateTimestamp: dateTimestampUTC,
         endTimestamp: endTimestampUTC,
         tickets,
-        photos: uploadedImageUrls, // URLs das imagens enviadas
+        images, // Imagens em base64
         establishmentId: isOwner ? user?.establishment?.id ?? '' : form.establishmentId,
         address: isOwner ? null : selectedEstablishment?.address,
         coordinates_event: isOwner ? null : form.coordinates_event
       };
 
-      const response = await axios.post("/api/event/create", eventData, {
+      // Usar o novo endpoint seguro
+      const response = await axios.post("/api/event/create-with-images", eventData, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -262,8 +311,6 @@ export default function NovoEventoPage() {
   return (
     <div className="w-full max-w-2xl mx-auto py-8">
       <h1 className="text-2xl font-bold mb-6">Criar Novo Evento</h1>
-      {error && <div className="mb-4 text-red-500 font-medium bg-red-50 border border-red-200 rounded p-2">{error}</div>}
-      {success && <div className="mb-4 text-green-600 font-medium bg-green-50 border border-green-200 rounded p-2">{success}</div>}
       <form onSubmit={handleSubmit} className="space-y-6">
         <Input
           label="Nome do Evento"
@@ -319,12 +366,12 @@ export default function NovoEventoPage() {
 
         <div>
           <label className="text-sm font-medium text-theme-tertiary mb-2 block">
-            Imagens do Evento
+            Imagem do Evento <span className="text-red-500">*</span>
           </label>
           <ImageUpload
             onImagesChanged={handleImagesChanged}
             folder="events"
-            maxImages={5}
+            maxImages={1}
           />
         </div>
         {/* Campo de estabelecimento apenas para promoters */}
@@ -397,6 +444,10 @@ export default function NovoEventoPage() {
           <Button type="button" variant="light" onPress={() => router.push("/dashboard/eventos")}>Cancelar</Button>
           <Button type="submit" className="bg-[#FF6600] text-white font-bold">Criar Evento</Button>
         </div>
+        
+        {/* Avisos de processamento próximos ao botão */}
+        {error && <div className="mt-4 text-red-500 font-medium bg-red-50 border border-red-200 rounded p-2">{error}</div>}
+        {success && <div className="mt-4 text-green-600 font-medium bg-green-50 border border-green-200 rounded p-2">{success}</div>}
       </form>
     </div>
   );

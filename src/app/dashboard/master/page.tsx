@@ -51,9 +51,20 @@ export default function MasterPage() {
                 
                 <div className="bg-theme-secondary p-6 rounded-lg border border-theme-primary shadow-theme-primary hover:shadow-lg transition-all duration-300">
                     <h2 className="text-xl font-semibold mb-4 text-theme-primary">🏢 Estabelecimentos</h2>
-                    <p className="text-theme-secondary mb-4">Aprove ou rejeite cadastros de estabelecimentos e monitore suas atividades</p>
+                    <p className="text-theme-secondary mb-4">Visualize estabelecimentos cadastrados por proprietários e monitore suas atividades</p>
                     <a href="/dashboard/master/estabelecimentos" className="text-[#FF6600] hover:text-[#d45500] font-medium transition-colors flex items-center gap-2">
                         Ver estabelecimentos 
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                    </a>
+                </div>
+                
+                <div className="bg-theme-secondary p-6 rounded-lg border border-theme-primary shadow-theme-primary hover:shadow-lg transition-all duration-300">
+                    <h2 className="text-xl font-semibold mb-4 text-theme-primary">🎭 Promotores</h2>
+                    <p className="text-theme-secondary mb-4">Monitore promotores de eventos e suas performances nos relatórios</p>
+                    <a href="/dashboard/master/relatorios" className="text-[#FF6600] hover:text-[#d45500] font-medium transition-colors flex items-center gap-2">
+                        Ver relatórios 
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                         </svg>

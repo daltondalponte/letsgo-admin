@@ -88,7 +88,7 @@ export default function EditarUsuarioPage() {
       if (!found || !found.establishment) throw new Error("Estabelecimento não encontrado");
       const estId = found.establishment.id;
       await axios.put(
-        `${process.env.NEXT_PUBLIC_API_URL}/establishment/admin/update/${estId}`,
+        `/api/establishment/admin/update/${estId}`,
         {
           name: form.establishmentName.trim(),
           address: form.establishmentAddress.trim(),

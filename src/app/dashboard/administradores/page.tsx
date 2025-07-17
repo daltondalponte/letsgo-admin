@@ -134,7 +134,7 @@ export default function AdministradoresPage() {
     }
 
     try {
-      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/admin/users/create-ticket-taker`, {
+      const response = await axios.post(`/api/admin/users/create-ticket-taker`, {
         name: createForm.name.trim(),
         email: createForm.email.trim(),
         password: createForm.password
@@ -160,7 +160,8 @@ export default function AdministradoresPage() {
       setIsSuccessOpen(true);
       
     } catch (error: any) {
-      const errorMsg = error.response?.data?.message || error.message || 'Erro ao criar administrador';
+      console.error('Erro completo:', error);
+      const errorMsg = error.response?.data?.message || error.response?.data?.error || error.message || 'Erro ao criar administrador';
       setErrorMessage(`Erro: ${errorMsg}`);
       setIsErrorOpen(true);
     }

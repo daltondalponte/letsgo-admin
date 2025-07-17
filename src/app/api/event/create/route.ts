@@ -13,9 +13,10 @@ export async function POST(request: NextRequest) {
         // Limpar o token (remover 'Bearer ' se existir)
         const cleanToken = token.replace('Bearer ', '');
         
-        const apiUrl = 'http://localhost:3008/event/create';
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3008';
+        const url = `${apiUrl}/events`;
         
-        const res = await fetch(apiUrl, {
+        const res = await fetch(url, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

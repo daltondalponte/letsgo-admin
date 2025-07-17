@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
         }
 
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3008';
-        const url = `${apiUrl}/event/find-many-by-user`;
+        const url = `${apiUrl}/events`;
 
         const response = await fetch(url, {
             headers: {

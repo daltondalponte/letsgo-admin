@@ -12,7 +12,7 @@ export async function GET(
         }
 
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3008';
-        const url = `${apiUrl}/event/find-by-id/${params.id}`;
+        const url = `${apiUrl}/events/${params.id}`;
 
         const response = await fetch(url, {
             headers: {
@@ -23,7 +23,7 @@ export async function GET(
         if (!response.ok) {
             const errorText = await response.text();
             console.error('Erro na resposta da API:', errorText);
-            throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+            return new NextResponse(errorText, { status: response.status });
         }
 
         const data = await response.json();

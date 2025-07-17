@@ -25,7 +25,7 @@ export function ModalNewTaker({ evento, onClose, callback, ...rest }: Props) {
             setLoading(true)
 
             // Aqui, garantir que o endpoint e a lógica estejam corretos para recepcionista
-            const { data } = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/event-manager/create`, {
+            const { data } = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/event-managers`, {
                 eventId: evento.id,
                 userUid: email.toLowerCase().trim()
             }, {

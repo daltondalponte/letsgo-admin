@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-export async function DELETE(
-    request: NextRequest,
-    { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest) {
     try {
         const token = request.headers.get('authorization')?.replace('Bearer ', '');
         
@@ -12,34 +9,31 @@ export async function DELETE(
         }
 
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3008';
-        const url = `${apiUrl}/ticket/delete/${params.id}`;
-        
-        console.log('Fazendo requisição para:', url);
-        console.log('Token:', token.substring(0, 20) + '...');
+        const url = `${apiUrl}/admin/users`;
 
         const response = await fetch(url, {
-            method: 'DELETE',
             headers: {
                 'authorization': `Bearer ${token}`
             }
         });
 
-        console.log('Status da resposta:', response.status);
-
         if (!response.ok) {
             const errorText = await response.text();
             console.error('Erro na resposta da API:', errorText);
-            throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+            return NextResponse.json(
+                { error: `Erro ao buscar usuários: ${response.status}` },
+                { status: response.status }
+            );
         }
 
         const data = await response.json();
-        console.log('Dados recebidos:', data);
         return NextResponse.json(data);
+
     } catch (error) {
-        console.error('Erro ao deletar ticket:', error);
-        return NextResponse.json({ 
-            error: 'Erro interno do servidor',
-            details: error instanceof Error ? error.message : 'Erro desconhecido'
-        }, { status: 500 });
+        console.error('Erro ao buscar usuários:', error);
+        return NextResponse.json(
+            { error: 'Erro interno do servidor' },
+            { status: 500 }
+        );
     }
 } 

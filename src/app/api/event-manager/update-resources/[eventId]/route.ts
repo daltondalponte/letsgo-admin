@@ -12,7 +12,7 @@ export async function PUT(
         }
 
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3008';
-        const url = `${apiUrl}/event-manager/update-resources/${params.eventId}`;
+        const url = `${apiUrl}/event-managers/event/${params.eventId}/resources`;
         
         console.log('Fazendo requisição para:', url);
         console.log('Token:', token.substring(0, 20) + '...');

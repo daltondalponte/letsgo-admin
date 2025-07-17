@@ -9,7 +9,8 @@ export async function GET(request: NextRequest) {
         }
 
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3008';
-        const url = `${apiUrl}/event/find-many-by-user-approved`;
+        // Usar a rota autenticada correta do backend que implementa permissões
+        const url = `${apiUrl}/events/user/approved`;
 
         const response = await fetch(url, {
             headers: {

@@ -84,14 +84,14 @@ export default function UsuariosPage() {
 
     try {
       // Buscar usuários detalhados (incluindo estabelecimentos)
-      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/admin/users/professionals-detailed`, {
+      const response = await axios.get('/api/admin/users/professionals-detailed', {
         headers: {
           Authorization: `Bearer ${token}`
         }
       });
       
       // Buscar todos os usuários para ter a lista completa
-      const allUsersResponse = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/admin/users/all`, {
+      const allUsersResponse = await axios.get('/api/admin/users/all', {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -165,6 +165,13 @@ export default function UsuariosPage() {
     }
   };
 
+  const truncateAddress = (address: string, maxLength: number = 30) => {
+    if (address.length <= maxLength) {
+      return address;
+    }
+    return address.substring(0, maxLength) + "...";
+  };
+
   const handleViewUser = (user: User) => {
     setSelectedUser(user);
     onOpen();
@@ -183,7 +190,7 @@ export default function UsuariosPage() {
     }
 
     try {
-      await axios.put(`${process.env.NEXT_PUBLIC_API_URL}/admin/users/professionals/${userId}/status`, {
+      await axios.put(`/api/admin/users/professionals/${userId}/status`, {
         state: !currentStatus
       }, {
         headers: {
@@ -283,7 +290,7 @@ export default function UsuariosPage() {
       };
 
       const response = await axios.put(
-        `${process.env.NEXT_PUBLIC_API_URL}/establishment/admin/update/${editingUser.establishment.id}`, 
+        `/api/establishment/admin/update/${editingUser.establishment.id}`, 
         updateData,
         {
           headers: {
@@ -386,9 +393,11 @@ export default function UsuariosPage() {
                   </TableCell>
                   <TableCell>
                     {user.establishment ? (
-                      <div className="flex flex-col">
-                        <p className="text-bold text-small">{user.establishment.name}</p>
-                        <p className="text-tiny text-gray-500">{user.establishment.address}</p>
+                      <div className="flex flex-col max-h-12 overflow-hidden">
+                        <p className="text-bold text-small leading-tight">{user.establishment.name}</p>
+                        <p className="text-tiny text-gray-500 leading-tight" title={user.establishment.address}>
+                          {truncateAddress(user.establishment.address)}
+                        </p>
                       </div>
                     ) : (
                       <span className="text-gray-400">-</span>

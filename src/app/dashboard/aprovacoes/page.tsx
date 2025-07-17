@@ -36,6 +36,8 @@ export default function AprovacoesPage() {
   const [selectedEvent, setSelectedEvent] = useState<PendingEvent | null>(null);
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
   const [processingAction, setProcessingAction] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   
   // Estados para o modal de confirmação
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -45,6 +47,14 @@ export default function AprovacoesPage() {
   const [confirmTitle, setConfirmTitle] = useState('');
 
   const rowsPerPage = 10;
+
+  // Função para limpar mensagens após alguns segundos
+  const clearMessages = () => {
+    setTimeout(() => {
+      setSuccess(null);
+      setError(null);
+    }, 3000);
+  };
 
   useEffect(() => {
     if (user === null) return;
@@ -58,7 +68,7 @@ export default function AprovacoesPage() {
 
     setLoading(true);
     try {
-      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/event/pending-approvals/${user.establishment.id}`, {
+      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/events/pending-approvals/${user.establishment.id}`, {
         headers: {
           'authorization': `Bearer ${token}`
         }
@@ -78,68 +88,44 @@ export default function AprovacoesPage() {
   };
 
   const handleApproveEvent = async (eventId: string) => {
-    if (token === null) return;
-
     setProcessingAction(eventId);
+    setSuccess(null);
+    setError(null);
     try {
-      await axios.put(`${process.env.NEXT_PUBLIC_API_URL}/event/approve/${eventId}`, {}, {
+      await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/events/${eventId}/approve`, {}, {
         headers: {
           'authorization': `Bearer ${token}`
         }
       });
-      
-      // Atualizar localmente
-      setPendingEvents(prev => prev.map(event => 
-        event.id === eventId 
-          ? { ...event, status: "APPROVE" as const }
-          : event
-      ));
-      
-      // Mostrar modal de sucesso
-      setConfirmTitle('Sucesso!');
-      setConfirmMessage('Evento aprovado com sucesso!');
-      setConfirmAction(null);
-      setShowConfirmModal(true);
+      await fetchPendingEvents();
+      setSuccess('Evento aprovado com sucesso!');
+      clearMessages();
     } catch (error) {
       console.error('Erro ao aprovar evento:', error);
-      setConfirmTitle('Erro');
-      setConfirmMessage('Erro ao aprovar evento. Tente novamente.');
-      setConfirmAction(null);
-      setShowConfirmModal(true);
+      setError('Erro ao aprovar evento');
+      clearMessages();
     } finally {
       setProcessingAction(null);
     }
   };
 
   const handleRejectEvent = async (eventId: string) => {
-    if (token === null) return;
-
     setProcessingAction(eventId);
+    setSuccess(null);
+    setError(null);
     try {
-      await axios.put(`${process.env.NEXT_PUBLIC_API_URL}/event/reject/${eventId}`, {}, {
+      await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/events/${eventId}/reject`, {}, {
         headers: {
           'authorization': `Bearer ${token}`
         }
       });
-      
-      // Atualizar localmente
-      setPendingEvents(prev => prev.map(event => 
-        event.id === eventId 
-          ? { ...event, status: "REJECT" as const }
-          : event
-      ));
-      
-      // Mostrar modal de sucesso
-      setConfirmTitle('Sucesso!');
-      setConfirmMessage('Evento rejeitado com sucesso!');
-      setConfirmAction(null);
-      setShowConfirmModal(true);
+      await fetchPendingEvents();
+      setSuccess('Evento rejeitado com sucesso!');
+      clearMessages();
     } catch (error) {
       console.error('Erro ao rejeitar evento:', error);
-      setConfirmTitle('Erro');
-      setConfirmMessage('Erro ao rejeitar evento. Tente novamente.');
-      setConfirmAction(null);
-      setShowConfirmModal(true);
+      setError('Erro ao rejeitar evento');
+      clearMessages();
     } finally {
       setProcessingAction(null);
     }
@@ -228,6 +214,18 @@ export default function AprovacoesPage() {
           />
         </div>
       </div>
+
+      {/* Mensagens de sucesso e erro */}
+      {success && (
+        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+          <p className="text-green-800 text-sm">{success}</p>
+        </div>
+      )}
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-red-800 text-sm">{error}</p>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex justify-center items-center h-64">

@@ -16,9 +16,9 @@ interface DashboardStats {
     master: number;
   };
   totalEvents: number;
-  totalTicketsSold: number;
-  activeUsers: number;
-  inactiveUsers: number;
+  totalTickets: number;
+  activeEvents: number;
+  completedEvents: number;
 }
 
 export default function MasterDashboardStats() {
@@ -41,7 +41,7 @@ export default function MasterDashboardStats() {
 
     try {
       setLoading(true);
-      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/admin/stats/overview`, {
+      const response = await axios.get('/api/admin/stats/overview', {
         headers: {
           'authorization': `Bearer ${token}`
         }
@@ -62,9 +62,9 @@ export default function MasterDashboardStats() {
           master: 1
         },
         totalEvents: 180,
-        totalTicketsSold: 15420,
-        activeUsers: 1180,
-        inactiveUsers: 70
+        totalTickets: 15420,
+        activeEvents: 1180,
+        completedEvents: 70
       });
     } finally {
       setLoading(false);
@@ -107,7 +107,7 @@ export default function MasterDashboardStats() {
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
       {/* Total de Usuários */}
       <Card className="bg-theme-secondary border border-theme-primary hover:shadow-lg transition-all duration-300">
         <CardBody className="p-6">
@@ -116,7 +116,7 @@ export default function MasterDashboardStats() {
               <p className="text-sm font-medium text-theme-tertiary">Total de Usuários</p>
               <p className="text-3xl font-bold text-theme-primary">{stats.totalUsers.toLocaleString('pt-BR')}</p>
               <p className="text-xs text-green-600 mt-1">
-                {stats.activeUsers} ativos • {stats.inactiveUsers} inativos
+                Usuários cadastrados no sistema
               </p>
             </div>
             <div className="p-3 bg-blue-100 rounded-full">
@@ -150,7 +150,7 @@ export default function MasterDashboardStats() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-theme-tertiary">Tickets Vendidos</p>
-              <p className="text-3xl font-bold text-theme-primary">{stats.totalTicketsSold.toLocaleString('pt-BR')}</p>
+              <p className="text-3xl font-bold text-theme-primary">{stats.totalTickets.toLocaleString('pt-BR')}</p>
               <p className="text-xs text-theme-secondary mt-1">
                 Total de vendas realizadas
               </p>
@@ -169,10 +169,10 @@ export default function MasterDashboardStats() {
             <div>
               <p className="text-sm font-medium text-theme-tertiary">Estabelecimentos</p>
               <p className="text-3xl font-bold text-theme-primary">
-                {(stats.usersByType.professionalOwner + stats.usersByType.professionalPromoter).toLocaleString('pt-BR')}
+                {stats.usersByType.professionalOwner.toLocaleString('pt-BR')}
               </p>
               <p className="text-xs text-theme-secondary mt-1">
-                Profissionais cadastrados
+                Proprietários cadastrados
               </p>
             </div>
             <div className="p-3 bg-purple-100 rounded-full">
@@ -182,8 +182,28 @@ export default function MasterDashboardStats() {
         </CardBody>
       </Card>
 
+      {/* Promotores */}
+      <Card className="bg-theme-secondary border border-theme-primary hover:shadow-lg transition-all duration-300">
+        <CardBody className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-theme-tertiary">Promotores</p>
+              <p className="text-3xl font-bold text-theme-primary">
+                {stats.usersByType.professionalPromoter.toLocaleString('pt-BR')}
+              </p>
+              <p className="text-xs text-theme-secondary mt-1">
+                Promotores de eventos
+              </p>
+            </div>
+            <div className="p-3 bg-indigo-100 rounded-full">
+              <UsersIcon size={24} className="text-indigo-600" />
+            </div>
+          </div>
+        </CardBody>
+      </Card>
+
       {/* Distribuição de Usuários */}
-      <Card className="bg-theme-secondary border border-theme-primary lg:col-span-2 hover:shadow-lg transition-all duration-300">
+      <Card className="bg-theme-secondary border border-theme-primary lg:col-span-3 hover:shadow-lg transition-all duration-300">
         <CardHeader>
           <h3 className="text-lg font-semibold text-theme-primary">Distribuição de Usuários</h3>
         </CardHeader>
@@ -214,16 +234,16 @@ export default function MasterDashboardStats() {
       </Card>
 
       {/* Taxa de Atividade */}
-      <Card className="bg-theme-secondary border border-theme-primary hover:shadow-lg transition-all duration-300">
+      <Card className="bg-theme-secondary border border-theme-primary lg:col-span-2 hover:shadow-lg transition-all duration-300">
         <CardBody className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-theme-tertiary">Taxa de Atividade</p>
+              <p className="text-sm font-medium text-theme-tertiary">Eventos Ativos</p>
               <p className="text-3xl font-bold text-green-600">
-                {stats.totalUsers > 0 ? ((stats.activeUsers / stats.totalUsers) * 100).toFixed(1) : '0'}%
+                {stats.totalEvents > 0 ? ((stats.activeEvents / stats.totalEvents) * 100).toFixed(1) : '0'}%
               </p>
               <p className="text-xs text-theme-secondary mt-1">
-                Usuários ativos
+                {stats.activeEvents} ativos • {stats.completedEvents} finalizados
               </p>
             </div>
             <div className="p-3 bg-green-100 rounded-full">

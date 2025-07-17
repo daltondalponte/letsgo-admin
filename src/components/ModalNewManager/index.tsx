@@ -46,7 +46,7 @@ export function ModalNewManager({ evento, onClose, callback, ...rest }: Props) {
             }
             setLoading(true)
 
-            const { data } = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/events-manager/create`, {
+            const { data } = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/event-managers`, {
                 eventId: evento.id,
                 recursos,
                 email: email.toLowerCase().trim()

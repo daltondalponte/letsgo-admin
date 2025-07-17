@@ -8,6 +8,13 @@ const nextConfig = {
   env: {
     NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyB41DRUbKWJHPxaFjMAwdrzWzbVKartNGg',
   },
+  // Configurações para aumentar limite de tamanho da requisição
+  api: {
+    bodyParser: {
+      sizeLimit: '10mb',
+    },
+    responseLimit: '10mb',
+  },
   webpack: (config, { isServer }) => {
     if (!isServer) {
       // No lado do cliente, resolver undici para false

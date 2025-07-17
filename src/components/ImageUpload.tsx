@@ -22,7 +22,7 @@ const ASPECT_TOLERANCE = 0.1; // Tolerância de 10% para o aspecto
 export const ImageUpload: React.FC<ImageUploadProps> = ({
   onImagesChanged,
   folder = 'events',
-  maxImages = 5,
+  maxImages = 1,
   className = '',
 }) => {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -124,11 +124,8 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
 
     for (const file of filesToProcess) {
       try {
-        console.log('Processando arquivo:', file.name, 'Tamanho:', file.size, 'Tipo:', file.type);
-        
         // Validar aspecto da imagem
         const aspectValidation = await validateImageAspect(file);
-        console.log('Validação de aspecto:', aspectValidation);
         
         if (!aspectValidation.valid) {
           setError(aspectValidation.error || 'Aspecto de imagem não permitido');
@@ -136,17 +133,13 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
         }
 
         // Comprimir imagem
-        console.log('Comprimindo imagem...');
         const compressedFile = await compressImage(file);
-        console.log('Imagem comprimida:', compressedFile.size, 'bytes');
 
         // Criar URL de preview
         const previewUrl = URL.createObjectURL(compressedFile);
         
         newFiles.push(compressedFile);
         newPreviewUrls.push(previewUrl);
-        
-        console.log('Arquivo processado com sucesso');
       } catch (error) {
         console.error('Erro ao processar arquivo:', error);
         setError(`Erro ao processar ${file.name}: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
@@ -226,9 +219,9 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
           startContent={<Upload className="w-6 h-6" />}
         >
           <div className="text-center">
-            <p className="text-sm text-gray-600">Clique para selecionar imagens</p>
+            <p className="text-sm text-gray-600">Clique para selecionar imagem <span className="text-red-500">*</span></p>
             <p className="text-xs text-gray-500 mt-1">
-              {selectedFiles.length}/{maxImages} imagens
+              {selectedFiles.length}/{maxImages} imagem{maxImages > 1 ? 'ns' : ''}
             </p>
           </div>
         </Button>

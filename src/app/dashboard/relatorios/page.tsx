@@ -1,6 +1,6 @@
 "use client"
 import { useState, useEffect } from "react";
-import { Card, CardBody, CardHeader, Button, Select, SelectItem, DatePicker, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Chip } from "@nextui-org/react";
+import { Card, CardBody, CardHeader, Button, Select, SelectItem, DatePicker, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Chip, Spinner } from "@nextui-org/react";
 import { BarChartIcon, CalendarIcon, DollarSignIcon, TrendingUpIcon, DownloadIcon, UsersIcon } from "lucide-react";
 import { useAuth } from "@/context/authContext";
 import axios from "axios";
@@ -56,13 +56,13 @@ export default function RelatoriosPage() {
       if (endDate) params.append('endDate', endDate.toISOString());
 
       const [statsResponse, salesResponse, summaryResponse] = await Promise.all([
-        axios.get(`${process.env.NEXT_PUBLIC_API_URL}/event/reports/stats?${params}`, {
+        axios.get(`/api/event/reports/stats?${params}`, {
           headers: { 'authorization': `Bearer ${token}` }
         }),
-        axios.get(`${process.env.NEXT_PUBLIC_API_URL}/event/reports/sales?${params}`, {
+        axios.get(`/api/event/reports/sales?${params}`, {
           headers: { 'authorization': `Bearer ${token}` }
         }),
-        axios.get(`${process.env.NEXT_PUBLIC_API_URL}/event/reports/summary?${params}`, {
+        axios.get(`/api/event/reports/summary?${params}`, {
           headers: { 'authorization': `Bearer ${token}` }
         })
       ]);
@@ -115,7 +115,7 @@ export default function RelatoriosPage() {
       if (startDate) params.append('startDate', startDate.toISOString());
       if (endDate) params.append('endDate', endDate.toISOString());
 
-      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/event/reports/export/${type}?${params}`, {
+      const response = await axios.get(`/api/event/reports/export/${type}?${params}`, {
         headers: { 'authorization': `Bearer ${token}` },
         responseType: 'blob'
       });
@@ -136,7 +136,7 @@ export default function RelatoriosPage() {
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="text-lg text-foreground">Carregando relatórios...</div>
+        <Spinner />
       </div>
     );
   }

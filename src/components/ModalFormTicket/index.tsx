@@ -5,7 +5,7 @@ import { ChangeEvent, useEffect, useState } from "react";
 
 
 interface Props extends Omit<ModalProps, "children"> {
-    callBack: () => {};
+    callBack?: () => void;
     ticketToUpdate?: any;
     eventId: string;
 }
@@ -42,7 +42,7 @@ export function ModalFormTicket({ callBack, eventId, onClose, ticketToUpdate, ..
             }
 
             setLoading(true)
-            const url = ticketToUpdate ? `${process.env.NEXT_PUBLIC_API_URL}/ticket/update` : `${process.env.NEXT_PUBLIC_API_URL}/ticket/create`
+            const url = ticketToUpdate ? `/api/ticket/${ticketToUpdate.id}` : `/api/ticket`
             const formData: any = {
                 eventId,
                 price: Number(String(ticketForm.price).replace("R$", '').replaceAll('.', '').replace(',', '.')),
@@ -59,45 +59,62 @@ export function ModalFormTicket({ callBack, eventId, onClose, ticketToUpdate, ..
                 }
             })
 
+            // Limpar formulário
             setTicketForm({
                 description: "",
                 price: "",
                 quantity_available: ""
             })
-            callBack()
-            if (onClose)
+            
+            // Chamar callback apenas se fornecido
+            if (callBack) {
+                callBack()
+            }
+            
+            // Fechar modal
+            if (onClose) {
                 onClose()
+            }
 
         } catch (error) {
             console.error('Erro no handleSubmit:', error)
+            alert('Erro ao salvar ingresso. Tente novamente.')
         } finally {
             setLoading(false)
         }
     }
 
     const handleClose = () => {
-        if (onClose) {
-            try {
-                onClose();
-            } catch (e) {
-                // Protege contra navegação inválida
-                console.error('Erro ao fechar modal:', e);
-            }
-        }
+        // Limpar formulário ao fechar
         setTicketForm({
             description: "",
             price: "",
             quantity_available: ""
         });
+        
+        if (onClose) {
+            try {
+                onClose();
+            } catch (e) {
+                console.error('Erro ao fechar modal:', e);
+            }
+        }
     };
 
     useEffect(() => {
-
+        // Preencher formulário quando ticketToUpdate mudar
         if (ticketToUpdate) {
             setTicketForm({
                 description: ticketToUpdate.description,
                 price: String(ticketToUpdate.price),
                 quantity_available: String(ticketToUpdate.quantity_available)
+            })
+        } else {
+            // Limpar formulário quando não há ticket para editar
+            setTicketForm({
+                description: "",
+                price: "",
+                quantity_available: ""
             })
         }
     }, [ticketToUpdate])
@@ -113,7 +130,9 @@ export function ModalFormTicket({ callBack, eventId, onClose, ticketToUpdate, ..
             <ModalContent>
                 {(onClose) => (
                     <>
-                        <ModalHeader className="flex flex-col gap-1">Novo ticket</ModalHeader>
+                        <ModalHeader className="flex flex-col gap-1">
+                            {ticketToUpdate ? 'Editar Ingresso' : 'Novo Ingresso'}
+                        </ModalHeader>
                         <ModalBody>
 
                             <Input
@@ -163,7 +182,7 @@ export function ModalFormTicket({ callBack, eventId, onClose, ticketToUpdate, ..
                                 isLoading={loading}
                                 className="bg-[#FF6600] text-white font-bold"
                                 onPress={handleSubmit}>
-                                Salvar
+                                {loading ? 'Salvando...' : 'Salvar'}
                             </Button>
                         </ModalFooter>
                     </>

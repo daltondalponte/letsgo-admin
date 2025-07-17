@@ -7,6 +7,7 @@ import { useAuth } from "@/context/authContext";
 import axios from "axios";
 import moment from "moment";
 import "moment/locale/pt-br";
+import { ConfirmationModal } from "@/components/ConfirmationModal";
 
 interface LogEntry {
   id: string;
@@ -31,6 +32,21 @@ export default function LogsMasterPage() {
   const [page, setPage] = useState(1);
   const [selectedLog, setSelectedLog] = useState<LogEntry | null>(null);
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type: 'confirm' | 'success' | 'error' | 'info';
+    onConfirm: () => void;
+    isDestructive?: boolean;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'confirm',
+    onConfirm: () => {},
+    isDestructive: false
+  });
 
   const rowsPerPage = 50;
 
@@ -143,25 +159,53 @@ export default function LogsMasterPage() {
       link.remove();
     } catch (error) {
       console.error('Erro ao exportar logs:', error);
-      alert('Erro ao exportar logs');
+      setConfirmModal({
+        isOpen: true,
+        title: 'Erro',
+        message: 'Erro ao exportar logs',
+        type: 'error',
+        onConfirm: () => {},
+        isDestructive: false
+      });
     }
   };
 
   const clearLogs = async () => {
-    if (confirm('Tem certeza que deseja limpar todos os logs? Esta ação não pode ser desfeita.')) {
-      try {
-        await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/admin/logs/clear`, {
-          headers: {
-            'authorization': `Bearer ${token}`
-          }
-        });
-        fetchLogs();
-        alert('Logs limpos com sucesso!');
-      } catch (error) {
-        console.error('Erro ao limpar logs:', error);
-        alert('Erro ao limpar logs');
-      }
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Confirmar Limpeza',
+      message: 'Tem certeza que deseja limpar todos os logs? Esta ação não pode ser desfeita.',
+      type: 'confirm',
+      onConfirm: async () => {
+        try {
+          await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/admin/logs/clear`, {
+            headers: {
+              'authorization': `Bearer ${token}`
+            }
+          });
+          fetchLogs();
+          setConfirmModal({
+            isOpen: true,
+            title: 'Sucesso',
+            message: 'Logs limpos com sucesso!',
+            type: 'success',
+            onConfirm: () => {},
+            isDestructive: false
+          });
+        } catch (error) {
+          console.error('Erro ao limpar logs:', error);
+          setConfirmModal({
+            isOpen: true,
+            title: 'Erro',
+            message: 'Erro ao limpar logs',
+            type: 'error',
+            onConfirm: () => {},
+            isDestructive: false
+          });
+        }
+      },
+      isDestructive: true
+    });
   };
 
   return (
@@ -391,6 +435,17 @@ export default function LogsMasterPage() {
           )}
         </ModalContent>
       </Modal>
+
+      {/* Modal de Confirmação */}
+      <ConfirmationModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        type={confirmModal.type}
+        isDestructive={confirmModal.isDestructive}
+      />
     </div>
   );
 } 

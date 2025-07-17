@@ -4,6 +4,7 @@ import { Card, CardBody, CardHeader, Button, Input, Switch, Textarea, Divider, C
 import { SaveIcon, RotateCcw, ShieldIcon, BellIcon, CreditCardIcon, DatabaseIcon } from "lucide-react";
 import { useAuth } from "@/context/authContext";
 import axios from "axios";
+import { ConfirmationModal } from "@/components/ConfirmationModal";
 
 interface SystemConfig {
   systemName: string;
@@ -38,6 +39,21 @@ export default function ConfiguracoesMasterPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState("general");
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type: 'confirm' | 'success' | 'error' | 'info';
+    onConfirm: () => void;
+    isDestructive?: boolean;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'confirm',
+    onConfirm: () => {},
+    isDestructive: false
+  });
 
   useEffect(() => {
     if (token) {
@@ -98,19 +114,40 @@ export default function ConfiguracoesMasterPage() {
           'authorization': `Bearer ${token}`
         }
       });
-      alert('Configurações salvas com sucesso!');
+      setConfirmModal({
+        isOpen: true,
+        title: 'Sucesso',
+        message: 'Configurações salvas com sucesso!',
+        type: 'success',
+        onConfirm: () => {},
+        isDestructive: false
+      });
     } catch (error) {
       console.error('Erro ao salvar configurações:', error);
-      alert('Erro ao salvar configurações');
+      setConfirmModal({
+        isOpen: true,
+        title: 'Erro',
+        message: 'Erro ao salvar configurações',
+        type: 'error',
+        onConfirm: () => {},
+        isDestructive: false
+      });
     } finally {
       setSaving(false);
     }
   };
 
   const handleResetConfig = async () => {
-    if (confirm('Tem certeza que deseja redefinir todas as configurações?')) {
-      await fetchConfig();
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Confirmar Redefinição',
+      message: 'Tem certeza que deseja redefinir todas as configurações?',
+      type: 'confirm',
+      onConfirm: async () => {
+        await fetchConfig();
+      },
+      isDestructive: true
+    });
   };
 
   const updateConfig = (path: string, value: any) => {
@@ -452,6 +489,17 @@ export default function ConfiguracoesMasterPage() {
           </CardBody>
         </Card>
       )}
+
+      {/* Modal de Confirmação */}
+      <ConfirmationModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        type={confirmModal.type}
+        isDestructive={confirmModal.isDestructive}
+      />
     </div>
   );
 } 

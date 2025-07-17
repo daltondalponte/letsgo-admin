@@ -45,7 +45,8 @@ export default function EventosPendentesPage() {
 
     setLoading(true);
     try {
-      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/event/find-many-by-user`, {
+      // Usar a rota que implementa permissões corretas
+      const response = await axios.get('/api/event/find-many-by-user', {
         headers: {
           'authorization': `Bearer ${token}`
         }
@@ -143,13 +144,13 @@ export default function EventosPendentesPage() {
               <div className="w-full overflow-x-auto">
                 <Table aria-label="Tabela de eventos pendentes" className="min-w-[800px]">
                   <TableHeader>
-                    <TableColumn>FOTO</TableColumn>
-                    <TableColumn>EVENTO</TableColumn>
-                    <TableColumn>ESTABELECIMENTO</TableColumn>
-                    <TableColumn>DATA/HORA</TableColumn>
-                    <TableColumn>ENDEREÇO</TableColumn>
-                    <TableColumn>STATUS</TableColumn>
-                    <TableColumn>AÇÕES</TableColumn>
+                    <TableColumn className="w-16">FOTO</TableColumn>
+                    <TableColumn className="w-48">EVENTO</TableColumn>
+                    <TableColumn className="w-48">ESTABELECIMENTO</TableColumn>
+                    <TableColumn className="w-32">DATA/HORA</TableColumn>
+                    <TableColumn className="w-48">ENDEREÇO</TableColumn>
+                    <TableColumn className="w-24">STATUS</TableColumn>
+                    <TableColumn className="w-48">AÇÕES</TableColumn>
                   </TableHeader>
                   <TableBody>
                     {items.map((event) => (
@@ -219,14 +220,17 @@ export default function EventosPendentesPage() {
                           </Chip>
                         </TableCell>
                         <TableCell>
-                          <div className="flex gap-2">
+                          <div className="flex gap-1">
                             <Button
                               size="sm"
                               variant="flat"
+                              color="default"
+                              className="min-w-0 px-2"
                               onPress={() => handleViewEvent(event)}
+                              title="Ver detalhes do evento"
                             >
-                              <EyeIcon size={16} />
-                              Ver detalhes
+                              <EyeIcon size={14} />
+                              Ver
                             </Button>
                           </div>
                         </TableCell>

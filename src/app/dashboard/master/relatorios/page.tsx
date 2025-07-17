@@ -1,6 +1,6 @@
 "use client"
 import { useState, useEffect } from "react";
-import { Card, CardBody, CardHeader, Button, Select, SelectItem, DatePicker, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Chip } from "@nextui-org/react";
+import { Card, CardBody, CardHeader, Button, Select, SelectItem, DatePicker, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Chip, Spinner } from "@nextui-org/react";
 import { BarChartIcon, UsersIcon, CalendarIcon, BuildingIcon, DollarSignIcon, TrendingUpIcon, DownloadIcon } from "lucide-react";
 import { useAuth } from "@/context/authContext";
 import axios from "axios";
@@ -60,21 +60,21 @@ export default function RelatoriosMasterPage() {
       if (endDate) params.append('endDate', endDate.toString());
 
       // 1. Estatísticas gerais
-      const statsPromise = axios.get(`${process.env.NEXT_PUBLIC_API_URL}/admin/stats/overview`, {
+      const statsPromise = axios.get(`/api/admin/stats/overview`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
       });
 
       // 2. Todos os eventos (para top eventos)
-      const eventsPromise = axios.get(`${process.env.NEXT_PUBLIC_API_URL}/admin/events/all`, {
+      const eventsPromise = axios.get(`/api/admin/events/all`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
       });
 
       // 3. Profissionais detalhados (para top estabelecimentos)
-      const establishmentsPromise = axios.get(`${process.env.NEXT_PUBLIC_API_URL}/admin/users/professionals-detailed`, {
+      const establishmentsPromise = axios.get(`/api/admin/users/professionals-detailed`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -90,9 +90,9 @@ export default function RelatoriosMasterPage() {
         totalUsers: statsData.totalUsers || 0,
         totalEstablishments: statsData.usersByType?.professionalOwner || 0,
         totalEvents: statsData.totalEvents || 0,
-        totalRevenue: statsData.totalTicketsSold || 0, // Ajuste se houver campo de receita
-        activeUsers: statsData.activeUsers || 0,
-        activeEvents: 0, // Não vem do endpoint, pode ser calculado se necessário
+        totalRevenue: statsData.totalTickets || 0, // Usando totalTickets como proxy para receita
+        activeUsers: statsData.totalUsers || 0, // Assumindo que todos estão ativos por enquanto
+        activeEvents: statsData.activeEvents || 0,
         monthlyRevenue: 0, // Não vem do endpoint, pode ser calculado se necessário
         monthlyEvents: 0 // Não vem do endpoint, pode ser calculado se necessário
       });
@@ -101,15 +101,15 @@ export default function RelatoriosMasterPage() {
       const events = eventsResponse.data.events || [];
       const topEventsSorted = [...events]
         .filter(event => !!event.id)
-        .sort((a, b) => (b.stats?.revenue || 0) - (a.stats?.revenue || 0))
+        .sort((a, b) => (b.stats?.totalRevenue || 0) - (a.stats?.totalRevenue || 0))
         .slice(0, 10)
         .map(event => ({
           id: event.id,
-          name: event.name || event.title,
+          name: event.name || 'Evento sem nome',
           establishment: event.establishment?.name || '-',
-          revenue: event.stats?.revenue || 0,
+          revenue: event.stats?.totalRevenue || 0,
           sales: event.stats?.totalTicketsSold || 0,
-          date: event.dateTimestamp || event.startDate || event.createdAt
+          date: event.dateTimestamp || event.createdAt
         }));
       setTopEvents(topEventsSorted);
 
@@ -117,10 +117,10 @@ export default function RelatoriosMasterPage() {
       const professionals = establishmentsResponse.data.professionals || [];
       const topEstablishmentsSorted = [...professionals]
         .map(prof => ({
-          id: prof.establishment?.id || prof.user?.id,
+          id: prof.establishment?.id || prof.user?.uid,
           name: prof.establishment?.name || '-',
           events: prof.stats?.totalEvents || 0,
-          revenue: prof.stats?.totalTicketsSold || 0, // Ajuste se houver campo de receita
+          revenue: prof.stats?.totalTicketsSold || 0, // Usando totalTicketsSold como proxy para receita
           owner: prof.user?.name || '-'
         }))
         .filter(est => !!est.id)
@@ -128,10 +128,10 @@ export default function RelatoriosMasterPage() {
         .slice(0, 10);
       setTopEstablishments(topEstablishmentsSorted);
     } catch (error) {
+      console.error('Erro ao buscar dados dos relatórios:', error);
       setStats(null);
       setTopEvents([]);
       setTopEstablishments([]);
-      // Exibir mensagem de erro se necessário
     } finally {
       setLoading(false);
     }
@@ -144,7 +144,7 @@ export default function RelatoriosMasterPage() {
       if (startDate) params.append('startDate', startDate.toString());
       if (endDate) params.append('endDate', endDate.toString());
 
-      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/admin/reports/export/${type}?${params}`, {
+      const response = await axios.get(`/api/admin/reports/export/${type}?${params}`, {
         headers: { 'authorization': `Bearer ${token}` },
         responseType: 'blob'
       });
@@ -152,19 +152,20 @@ export default function RelatoriosMasterPage() {
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `relatorio-${type}-${moment().format('YYYY-MM-DD')}.xlsx`);
+      link.setAttribute('download', `relatorio-${type}-${moment().format('YYYY-MM-DD')}.csv`);
       document.body.appendChild(link);
       link.click();
       link.remove();
     } catch (error) {
       console.error('Erro ao exportar relatório:', error);
+      alert('Erro ao exportar relatório. Tente novamente.');
     }
   };
 
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64 bg-theme-secondary">
-        <div className="text-lg text-theme-primary">Carregando relatórios...</div>
+        <Spinner size="lg" color="warning" />
       </div>
     );
   }
@@ -180,7 +181,23 @@ export default function RelatoriosMasterPage() {
             startContent={<DownloadIcon size={20} />}
             onPress={() => handleExportReport('general')}
           >
-            Exportar Relatório Geral
+            Relatório Geral
+          </Button>
+          <Button
+            color="secondary"
+            className="bg-accent-primary text-theme-primary border-theme-primary"
+            startContent={<DownloadIcon size={20} />}
+            onPress={() => handleExportReport('events')}
+          >
+            Relatório de Eventos
+          </Button>
+          <Button
+            color="success"
+            className="bg-accent-primary text-theme-primary border-theme-primary"
+            startContent={<DownloadIcon size={20} />}
+            onPress={() => handleExportReport('users')}
+          >
+            Relatório de Usuários
           </Button>
         </div>
       </div>
