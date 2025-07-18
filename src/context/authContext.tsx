@@ -96,7 +96,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       timeoutId = setTimeout(() => {
         if (!isLoggingOut.current) {
           isLoggingOut.current = true;
-          console.log('Logout automático por inatividade (1 hora)');
           setUser(null);
           setToken(null);
           localStorage.removeItem('access_token');

@@ -2,6 +2,7 @@
 import { useAuth } from "@/context/authContext";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import ProfessionalDashboardStats from "@/components/ProfessionalDashboard/ProfessionalDashboardStats";
 
 export default function Dashboard() {
     const { user, isAuthenticated, loading } = useAuth();
@@ -20,40 +21,73 @@ export default function Dashboard() {
         return null;
     }
 
+    const getUserTypeLabel = () => {
+        switch (user?.type) {
+            case 'PROFESSIONAL_OWNER':
+                return 'Proprietário';
+            case 'PROFESSIONAL_PROMOTER':
+                return 'Promoter';
+            default:
+                return 'Profissional';
+        }
+    };
+
     return (
-        <main className="flex w-full flex-col items-center justify-start p-24 bg-theme-primary">
-            <div className="w-full max-w-6xl">
-                <h1 className="text-3xl font-bold mb-8 text-theme-primary">Dashboard Profissional</h1>
-                <p className="text-lg mb-6 text-theme-secondary">Bem-vindo, {user?.name}!</p>
+        <div className="flex flex-col w-full h-full">
+            <div className="mb-8">
+                <h1 className="text-3xl font-bold text-theme-primary">Dashboard {getUserTypeLabel()}</h1>
+                <p className="text-lg text-theme-secondary mt-2">Bem-vindo, {user?.name}!</p>
+                <p className="text-sm text-theme-tertiary mt-1">
+                    {user?.type === 'PROFESSIONAL_OWNER' 
+                        ? 'Gerencie seus estabelecimentos e eventos'
+                        : 'Monitore seus eventos e vendas'
+                    }
+                </p>
+            </div>
+            
+            {/* Estatísticas Personalizadas */}
+            <ProfessionalDashboardStats />
+            
+            {/* Cards de Navegação */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
+                <div className="bg-theme-secondary p-6 rounded-lg border border-theme-primary shadow-theme-primary hover:shadow-lg transition-all duration-300">
+                    <h2 className="text-xl font-semibold mb-4 text-theme-primary">🎭 Meus Eventos</h2>
+                    <p className="text-theme-secondary mb-4">
+                        {user?.type === 'PROFESSIONAL_OWNER' 
+                            ? 'Gerencie eventos dos seus estabelecimentos'
+                            : 'Crie e gerencie seus eventos promocionais'
+                        }
+                    </p>
+                    <a href="/dashboard/eventos" className="text-[#FF6600] hover:text-[#d45500] font-medium transition-colors flex items-center gap-2">
+                        Ver eventos 
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                    </a>
+                </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <div className="bg-theme-secondary p-6 rounded-lg border border-theme-primary shadow-theme-primary">
-                        <h2 className="text-xl font-semibold mb-4 text-theme-primary">Meus Eventos</h2>
-                        <p className="text-theme-secondary">Gerencie seus eventos criados</p>
-                        <a href="/dashboard/eventos" className="text-[#FF6600] hover:text-[#d45500] mt-2 inline-block font-medium transition-colors">
-                            Ver eventos →
-                        </a>
-                    </div>
-                    
-                    <div className="bg-theme-secondary p-6 rounded-lg border border-theme-primary shadow-theme-primary">
-                        <h2 className="text-xl font-semibold mb-4 text-theme-primary">Cupons</h2>
-                        <p className="text-theme-secondary">Crie e gerencie cupons de desconto</p>
-                        <a href="/dashboard/cupons" className="text-[#FF6600] hover:text-[#d45500] mt-2 inline-block font-medium transition-colors">
-                            Gerenciar cupons →
-                        </a>
-                    </div>
-                    
-                    <div className="bg-theme-secondary p-6 rounded-lg border border-theme-primary shadow-theme-primary">
-                        <h2 className="text-xl font-semibold mb-4 text-theme-primary">Relatórios</h2>
-                        <p className="text-theme-secondary">Visualize relatórios de vendas</p>
-                        <a href="/dashboard/relatorios" className="text-[#FF6600] hover:text-[#d45500] mt-2 inline-block font-medium transition-colors">
-                            Ver relatórios →
-                        </a>
-                    </div>
+                <div className="bg-theme-secondary p-6 rounded-lg border border-theme-primary shadow-theme-primary hover:shadow-lg transition-all duration-300">
+                    <h2 className="text-xl font-semibold mb-4 text-theme-primary">🎫 Cupons</h2>
+                    <p className="text-theme-secondary mb-4">Crie cupons de desconto para aumentar suas vendas</p>
+                    <a href="/dashboard/cupons" className="text-[#FF6600] hover:text-[#d45500] font-medium transition-colors flex items-center gap-2">
+                        Gerenciar cupons 
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                    </a>
+                </div>
+                
+                <div className="bg-theme-secondary p-6 rounded-lg border border-theme-primary shadow-theme-primary hover:shadow-lg transition-all duration-300">
+                    <h2 className="text-xl font-semibold mb-4 text-theme-primary">📊 Relatórios</h2>
+                    <p className="text-theme-secondary mb-4">Visualize relatórios detalhados de vendas e performance</p>
+                    <a href="/dashboard/relatorios" className="text-[#FF6600] hover:text-[#d45500] font-medium transition-colors flex items-center gap-2">
+                        Ver relatórios 
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                    </a>
                 </div>
             </div>
-        </main>
-    )
+        </div>
+    );
 }
-
-// TODO: Integrar com contexto de autenticação (useAuth) em Client Component

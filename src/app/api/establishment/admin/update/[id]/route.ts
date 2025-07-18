@@ -14,9 +14,6 @@ export async function PUT(
     const body = await request.json();
     const establishmentId = params.id;
 
-    console.log('🔍 Atualizando estabelecimento:', establishmentId);
-    console.log('📝 Dados recebidos:', body);
-
     const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3008';
     const response = await fetch(`${backendUrl}/establishments/admin/${establishmentId}`, {
       method: 'PUT',
@@ -26,8 +23,6 @@ export async function PUT(
       },
       body: JSON.stringify(body),
     });
-
-    console.log('📊 Status da resposta:', response.status);
     
     if (!response.ok) {
       console.error('❌ Erro do backend:', response.status, response.statusText);
@@ -40,7 +35,6 @@ export async function PUT(
     }
 
     const data = await response.json();
-    console.log('✅ Estabelecimento atualizado com sucesso:', data);
     return NextResponse.json(data);
   } catch (error) {
     console.error('💥 Erro na rota de atualização de estabelecimento:', error);

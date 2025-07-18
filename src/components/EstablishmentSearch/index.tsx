@@ -86,7 +86,7 @@ export default function EstablishmentSearch({
 
   const handleViewEstablishment = (establishment: Establishment) => {
     // Aqui você pode implementar a visualização detalhada do estabelecimento
-    console.log('Visualizar estabelecimento:', establishment);
+    // console.log('Visualizar estabelecimento:', establishment);
   };
 
   const clearSelection = () => {

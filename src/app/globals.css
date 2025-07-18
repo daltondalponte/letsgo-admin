@@ -374,3 +374,250 @@ html[data-theme="light"] {
 .text-accent-secondary {
   color: var(--accent-secondary) !important;
 }
+
+/* Estilos específicos para o DatePicker do react-datepicker */
+.react-datepicker-wrapper {
+  width: 100%;
+}
+
+.react-datepicker__input-container {
+  width: 100%;
+}
+
+.react-datepicker__input-container input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  font-family: 'Museo Sans', sans-serif;
+}
+
+.react-datepicker__input-container input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px rgba(255, 102, 0, 0.1);
+}
+
+/* Container do calendário */
+.react-datepicker-popper {
+  z-index: 9999 !important;
+}
+
+.react-datepicker {
+  font-family: 'Museo Sans', sans-serif !important;
+  background-color: var(--bg-secondary) !important;
+  border: 1px solid var(--border-primary) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Cabeçalho do calendário */
+.react-datepicker__header {
+  background-color: var(--bg-tertiary) !important;
+  border-bottom: 1px solid var(--border-primary) !important;
+  border-radius: 8px 8px 0 0 !important;
+}
+
+.react-datepicker__current-month {
+  color: var(--text-primary) !important;
+  font-weight: 500 !important;
+}
+
+.react-datepicker__day-name {
+  color: var(--text-secondary) !important;
+}
+
+/* Navegação do calendário */
+.react-datepicker__navigation {
+  border-color: var(--text-secondary) !important;
+}
+
+.react-datepicker__navigation:hover {
+  border-color: var(--accent-primary) !important;
+}
+
+/* Dias do calendário */
+.react-datepicker__day {
+  color: var(--text-primary) !important;
+  background-color: transparent !important;
+}
+
+.react-datepicker__day:hover {
+  background-color: var(--bg-tertiary) !important;
+  color: var(--text-primary) !important;
+}
+
+.react-datepicker__day--selected {
+  background-color: var(--accent-primary) !important;
+  color: white !important;
+}
+
+.react-datepicker__day--keyboard-selected {
+  background-color: var(--accent-secondary) !important;
+  color: white !important;
+}
+
+.react-datepicker__day--disabled {
+  color: var(--text-tertiary) !important;
+}
+
+/* Seletor de tempo */
+.react-datepicker__time-container {
+  border-left: 1px solid var(--border-primary) !important;
+  background-color: var(--bg-secondary) !important;
+}
+
+.react-datepicker__time {
+  background-color: var(--bg-secondary) !important;
+}
+
+.react-datepicker__time-box {
+  background-color: var(--bg-secondary) !important;
+}
+
+.react-datepicker__time-list-item {
+  color: var(--text-primary) !important;
+  background-color: transparent !important;
+}
+
+.react-datepicker__time-list-item:hover {
+  background-color: var(--bg-tertiary) !important;
+  color: var(--text-primary) !important;
+}
+
+.react-datepicker__time-list-item--selected {
+  background-color: var(--accent-primary) !important;
+  color: white !important;
+}
+
+/* Meses e anos */
+.react-datepicker__month-container {
+  background-color: var(--bg-secondary) !important;
+}
+
+.react-datepicker__month {
+  background-color: var(--bg-secondary) !important;
+}
+
+/* Ajuste específico para modais */
+.nextui-modal .react-datepicker-popper {
+  z-index: 99999 !important;
+}
+
+.nextui-modal .react-datepicker {
+  position: relative !important;
+}
+
+/* Garantir que o calendário apareça acima do modal */
+[data-slot="content"] .react-datepicker-popper {
+  z-index: 999999 !important;
+}
+
+/* Ajuste para o container do modal */
+.nextui-modal-content {
+  overflow: visible !important;
+}
+
+.nextui-modal-body {
+  overflow: visible !important;
+}
+
+/* Ajuste específico para o modal de cupons */
+.modal-cupom .react-datepicker-popper {
+  z-index: 999999 !important;
+}
+
+/* Estilos adicionais para garantir funcionamento correto do DatePicker em modais */
+.modal-cupom {
+  overflow: visible !important;
+}
+
+.modal-cupom .nextui-modal-content {
+  overflow: visible !important;
+}
+
+.modal-cupom .nextui-modal-body {
+  overflow: visible !important;
+}
+
+/* Garantir que o DatePicker não seja cortado */
+.react-datepicker-popper[data-placement^="top"] {
+  margin-bottom: 8px !important;
+}
+
+.react-datepicker-popper[data-placement^="bottom"] {
+  margin-top: 8px !important;
+}
+
+/* Ajuste para o container do DatePicker */
+.react-datepicker-wrapper {
+  position: relative !important;
+}
+
+/* Garantir que o input do DatePicker tenha espaço suficiente */
+.react-datepicker__input-container {
+  position: relative !important;
+}
+
+/* Ajuste para o calendário quando está dentro de um modal */
+.nextui-modal .react-datepicker {
+  position: absolute !important;
+  z-index: 999999 !important;
+}
+
+/* Garantir que o modal não corte o DatePicker */
+.nextui-modal {
+  overflow: visible !important;
+}
+
+.nextui-modal-content {
+  overflow: visible !important;
+}
+
+.nextui-modal-body {
+  overflow: visible !important;
+}
+
+/* Ajuste específico para o tema escuro no DatePicker */
+[data-theme="dark"] .react-datepicker {
+  background-color: var(--bg-secondary) !important;
+  border-color: var(--border-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .react-datepicker__input-container input {
+  background-color: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-primary) !important;
+}
+
+[data-theme="dark"] .react-datepicker__input-container input::placeholder {
+  color: var(--text-tertiary) !important;
+}
+
+/* Estilos específicos para o DatePicker em modais */
+.datepicker-modal {
+  z-index: 999999 !important;
+  position: relative !important;
+}
+
+.datepicker-modal .react-datepicker {
+  z-index: 999999 !important;
+  position: absolute !important;
+}
+
+/* Garantir que o DatePicker apareça acima de tudo */
+.react-datepicker-popper {
+  z-index: 999999 !important;
+}
+
+/* Ajuste específico para modais */
+.modal-cupom .react-datepicker-popper {
+  z-index: 999999 !important;
+}
+
+.modal-cupom .datepicker-modal {
+  z-index: 999999 !important;
+}

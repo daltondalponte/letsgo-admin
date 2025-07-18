@@ -52,7 +52,7 @@ export default function Table({ data }: TableProps) {
             setUsers(res.users)
 
         } catch (e) {
-            console.log(e);
+            console.error('Erro ao atualizar status do usuário:', e);
         }
 
 

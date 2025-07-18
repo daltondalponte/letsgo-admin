@@ -103,10 +103,8 @@ export default function CuponsPage() {
   };
 
   const fetchEvents = async () => {
-    if (!token) {
-      console.error('Token não disponível para eventos');
-      return;
-    }
+    if (!token || !user) return;
+    
     try {
       // Usar a rota que implementa permissões corretas
       const response = await axios.get('/api/event/find-many-by-user', {
@@ -114,8 +112,19 @@ export default function CuponsPage() {
           Authorization: `Bearer ${token}`
         }
       });
-      setEvents(response.data.events || []);
-      setMyEventIds((response.data.events || []).map((e: any) => e.id));
+      
+      // Filtrar eventos baseado no tipo de usuário
+      let filteredEvents = response.data.events || [];
+      
+      if (user?.type === 'PROFESSIONAL_OWNER') {
+        // Owners só podem criar cupons para eventos que eles criaram
+        filteredEvents = filteredEvents.filter((event: any) => event.useruid === user?.uid);
+      }
+      // Para Promoters, mostrar todos os eventos (já que só veem os que criaram)
+      
+      setEvents(filteredEvents);
+      const eventIds = filteredEvents.map((e: any) => e.id);
+      setMyEventIds(eventIds);
     } catch (error) {
       console.error('Erro ao buscar eventos:', error);
     }
@@ -156,7 +165,7 @@ export default function CuponsPage() {
       const cupomData: any = {
         code: newCupom.code,
         descont_percent: newCupom.discountType === 'PERCENTAGE' ? newCupom.discountValue : 0,
-        discont_value: newCupom.discountType === 'FIXED' ? newCupom.discountValue : 0,
+        discount_value: newCupom.discountType === 'FIXED' ? newCupom.discountValue : 0,
         quantity_available: newCupom.maxUses,
         expiresAt: newCupom.validUntil,
         description: newCupom.description // Added description
@@ -271,10 +280,19 @@ export default function CuponsPage() {
 
   // Função utilitária para saber se o cupom pode ser editado/deletado pelo usuário logado
   const canEditOrDeleteCupom = (cupom: Cupom) => {
-    // Cupom de evento do usuário
-    if (cupom.eventId && myEventIds.includes(cupom.eventId)) return true;
-    // Cupom global criado pelo usuário
-    if (!cupom.eventId && (cupom as any).useruid === user?.uid) return true;
+    // Cupom global: apenas o criador pode editar
+    if (!cupom.eventId) {
+      if ((cupom as any).useruid === user?.uid) {
+        return true;
+      }
+      return false;
+    }
+    
+    // Cupom específico de evento: apenas o criador do evento pode editar
+    if (cupom.eventId && myEventIds.includes(cupom.eventId)) {
+      return true;
+    }
+    
     return false;
   };
 
@@ -522,7 +540,7 @@ export default function CuponsPage() {
       </Modal>
 
       {/* Modal de Criação de Cupom */}
-      <Modal isOpen={isCreateModalOpen} onOpenChange={setIsCreateModalOpen} size="2xl">
+      <Modal isOpen={isCreateModalOpen} onOpenChange={setIsCreateModalOpen} size="2xl" className="modal-cupom">
         <ModalContent>
           {(onClose) => (
             <>
@@ -598,6 +616,7 @@ export default function CuponsPage() {
                       placeholderText="Selecione a data e hora"
                       className="w-full px-4 py-3 rounded-md border border-default-200 text-theme-primary bg-white shadow-sm focus:ring-2 focus:ring-accent-primary"
                       locale="pt-BR"
+                      calendarClassName="datepicker-modal"
                     />
                   </div>
                 </div>
@@ -621,7 +640,7 @@ export default function CuponsPage() {
       </Modal>
 
       {/* Modal de Edição de Cupom */}
-      <Modal isOpen={isEditModalOpen} onOpenChange={setIsEditModalOpen} size="2xl">
+      <Modal isOpen={isEditModalOpen} onOpenChange={setIsEditModalOpen} size="2xl" className="modal-cupom">
         <ModalContent>
           {(onClose) => (
             <>
@@ -692,6 +711,7 @@ export default function CuponsPage() {
                           placeholderText="Selecione a data e hora"
                           className="w-full px-4 py-3 rounded-md border border-default-200 text-theme-primary bg-white shadow-sm focus:ring-2 focus:ring-accent-primary"
                           locale="pt-BR"
+                          calendarClassName="datepicker-modal"
                         />
                       )}
                     </div>
